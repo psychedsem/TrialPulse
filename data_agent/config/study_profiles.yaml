@@ -1,0 +1,40 @@
+studies:
+  NNR-PSI-01:
+    onsite_required: true
+    home_dosing: false
+    visit_frequency: medium
+    visit_complexity: very_high
+    monitoring_burden: high
+    psychological_support: structured
+    operational_burden: concentrated
+    follow_up_intensity: medium_high
+
+  NNR-ESK-02:
+    onsite_required: true
+    home_dosing: false
+    visit_frequency: very_high
+    visit_complexity: high
+    monitoring_burden: very_high
+    psychological_support: none
+    operational_burden: distributed_high
+    follow_up_intensity: high
+
+  NNR-DXB-03:
+    onsite_required: partial
+    home_dosing: true
+    visit_frequency: medium
+    visit_complexity: low
+    monitoring_burden: medium
+    psychological_support: none
+    operational_burden: medium_low
+    follow_up_intensity: medium
+
+  NNR-SER-04:
+    onsite_required: partial
+    home_dosing: true
+    visit_frequency: medium
+    visit_complexity: low
+    monitoring_burden: standard
+    psychological_support: none
+    operational_burden: low
+    follow_up_intensity: medium

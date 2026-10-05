@@ -1,0 +1,120 @@
+generation:
+  development_seed: 20261003
+
+dropout_probability:
+  NNR-PSI-01: 0.10
+  NNR-ESK-02: 0.12
+  NNR-DXB-03: 0.08
+  NNR-SER-04: 0.08
+
+missed_visit_probability:
+  NNR-PSI-01: 0.035
+  NNR-ESK-02: 0.050
+  NNR-DXB-03: 0.030
+  NNR-SER-04: 0.030
+
+site_missed_modifier:
+  SITE_01: 1.00
+  SITE_02: 0.65
+  SITE_03: 1.00
+  SITE_04: 1.00
+  SITE_05: 1.00
+  SITE_06: 1.00
+  SITE_07: 3.00
+  SITE_08: 0.65
+
+scheduling_jitter_days:
+  NNR-PSI-01: 2
+  NNR-ESK-02: 1
+  NNR-DXB-03: 2
+  NNR-SER-04: 2
+
+attendance_jitter_days:
+  NNR-PSI-01: 2
+  NNR-ESK-02: 1
+  NNR-DXB-03: 3
+  NNR-SER-04: 3
+
+disruption_probability:
+  NNR-PSI-01: 0.05
+  NNR-ESK-02: 0.08
+  NNR-DXB-03: 0.04
+  NNR-SER-04: 0.04
+
+missing_assessment_probability:
+  NNR-PSI-01: 0.025
+  NNR-ESK-02: 0.030
+  NNR-DXB-03: 0.018
+  NNR-SER-04: 0.018
+
+site_completeness_modifier:
+  SITE_01: 1.00
+  SITE_02: 0.70
+  SITE_03: 1.00
+  SITE_04: 1.00
+  SITE_05: 1.00
+  SITE_06: 1.00
+  SITE_07: 1.00
+  SITE_08: 0.70
+
+study_query_modifier:
+  NNR-PSI-01: 1.10
+  NNR-ESK-02: 1.20
+  NNR-DXB-03: 0.90
+  NNR-SER-04: 0.85
+
+query_open_probability:
+  default: 0.25
+  SITE_05: 0.55
+  SITE_02: 0.15
+  SITE_08: 0.15
+
+query_aging_days:
+  default: {min: 1, max: 18}
+  SITE_05: {min: 8, max: 35}
+  SITE_02: {min: 1, max: 9}
+  SITE_08: {min: 1, max: 9}
+
+query_resolution_days:
+  default: {min: 3, max: 10}
+  SITE_05: {min: 7, max: 16}
+  SITE_02: {min: 2, max: 7}
+  SITE_08: {min: 2, max: 7}
+
+monitoring:
+  NNR-PSI-01:
+    dosing_day_minutes: {min: 330, max: 480}
+  NNR-ESK-02:
+    visit_minutes: {min: 110, max: 150}
+
+monitoring_complete_probability:
+  default: 0.98
+  SITE_06_ESK: 0.88
+
+session_documentation_complete_probability:
+  default: 0.97
+  SITE_01_PSI: 0.72
+
+random_deviation_probability:
+  NNR-PSI-01: 0.025
+  NNR-ESK-02: 0.030
+  NNR-DXB-03: 0.015
+  NNR-SER-04: 0.015
+
+major_random_deviation_probability: 0.10
+
+ground_truth:
+  SITE_03: {recruitment_slow: true}
+  SITE_05: {query_aging_high: true, minimum_open_query_age_days: 11}
+  SITE_07: {missed_visit_rate_high: true, minimum_missed_visit_rate: 0.12}
+  SITE_01: {PSI_documentation_issue: true, minimum_incomplete_dosing_records: 1}
+  SITE_06: {ESK_monitoring_issue: true, minimum_monitoring_incomplete_rate: 0.10}
+  good_performers: [SITE_02, SITE_08]
+
+dirty_data:
+  null_noncritical_rate: 0.02
+  duplicate_rate: 0.005
+  inconsistent_date_rate: 0.01
+  casing_spacing_rate: 0.01
+  monitoring_outliers: [5, 720, 999]
+  query_inconsistencies: 3

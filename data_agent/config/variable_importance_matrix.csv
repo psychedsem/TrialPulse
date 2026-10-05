@@ -1,0 +1,71 @@
+﻿variable,study_id,domain,importance,range_or_rule,literature_anchor,notes
+screening_failure,ALL,operational,high,Conteggi esatti per studio/sito da study_design.yaml (194 screenati; 154 arruolati; 40 failure).,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+enrollment_date,ALL,operational,high,Calendario recruitment congelato in study_design.yaml; date entro le finestre di arruolamento dello studio.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+visit_status,ALL,operational,high,"Missed base PSI 3.5%, ESK 5.0%, DXB/SER 3.0%; modifier SITE_07 3.0, SITE_02/08 0.65; cap 35%.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+dropout,ALL,operational,high,"Probabilità participant-level: PSI 10%, ESK 12%, DXB/SER 8%.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+scheduled_date,ALL,operational,high,"Jitter scheduling: PSI ±2g, ESK ±1g, DXB/SER ±2g.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+actual_date,ALL,operational,high,"Jitter attendance: PSI ±2g, ESK ±1g, DXB/SER ±3g + disruption 4–8%.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+missing_assessments,ALL,operational,high,"Binomiale per assessment: PSI 2.5%, ESK 3.0%, DXB/SER 1.8%; modifier sito completeness.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+oldest_open_query_days,ALL,operational,high,Default 1–18g; SITE_05 8–35g con minimo ground-truth 11g; SITE_02/08 1–9g.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+protocol_deviations,ALL,operational,high,"Probabilità casuale PSI 2.5%, ESK 3.0%, DXB/SER 1.5% + regole major forzate PSI/ESK.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+deviation_severity,ALL,operational,high,Major 10% delle deviazioni casuali; major obbligatoria per PSI docs incomplete / ESK monitoring incomplete.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+required_monitoring_complete,ALL,operational,high,"Default 98%; SITE_06 ESK 88%, con ground-truth incomplete ≥10%.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+session_documentation_complete,ALL,operational,high,"Default 97%; SITE_01 PSI 72%, con almeno 1 dosing record incompleto.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+dropout_reason,ALL,operational,medium,Categorie sintetiche plausibili; adverse_event assegnato solo quando coerente con AE discontinuation.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+required_assessments,ALL,operational,medium,Screening 4; PSI Dosing 8; PSI preparation 4; altri PSI 5; ESK 6; Baseline DXB/SER 5; altri 4.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+data_queries_opened,ALL,operational,medium,Poisson: base 0.03 + 0.035×required + 0.55×missing; modifier studio 0.85–1.20.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+data_queries_open,ALL,operational,medium,"Binomiale su opened; p default 25%, SITE_05 55%, SITE_02/08 15%.",No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+mean_query_resolution_days,ALL,operational,medium,Default 3–10g; SITE_05 7–16g; SITE_02/08 2–7g.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+monitoring_minutes,ALL,operational,medium,PSI Dosing Day 330–480 min; ESK dosing visits 110–150 min.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+deviation_type,ALL,operational,medium,documentation | monitoring | procedure | consent_process | other; regole forzate sui casi critici.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+participant_status,ALL,operational,low,screening | active | withdrawn | completed | screen_failed; derivato da visit/dropout status.,No: scenario CRO sintetico,Alta/media/bassa indica rilevanza per TrialPulse; non implica validazione evidence-based.
+record_id,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+study_id,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+intervention,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+intervention_class,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+site_id,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+city,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+country,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+participant_id,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+screening_status,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+visit_name,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+visit_sequence,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+day0_date,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+target_day,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+target_date,ALL,operational,na,N/A,N/A,Identificativo/categoria/campo derivato.
+depression_scale,NNR-PSI-01,efficacy,na,MADRS,"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Scala clinica associata allo studio.
+baseline_depression_score,NNR-PSI-01,efficacy,high,30–35 MADRS (anchor 32.5),"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Range stretto.
+depression_score,NNR-PSI-01,efficacy,high,Scala 0–60; endpoint Week 3,"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Score longitudinale; endpoint principale vincolato.
+depression_change_from_baseline,NNR-PSI-01,efficacy,high,mean -14.6–-9.3 (anchor -12.0),"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Derivato da score-baseline; QA su media endpoint.
+clinical_response,NNR-PSI-01,efficacy,high,≥50% riduzione; rate endpoint 32.0–42.0%,"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679","Derivato matematicamente, non sorteggiato."
+clinical_remission,NNR-PSI-01,efficacy,high,MADRS ≤ 10; rate endpoint 24.0–34.0%,"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679","Derivato matematicamente, tasso endpoint vincolato."
+depression_scale,NNR-ESK-02,efficacy,na,MADRS,"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Scala clinica associata allo studio.
+baseline_depression_score,NNR-ESK-02,efficacy,high,29–34 MADRS (anchor 31.4),"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Range stretto.
+depression_score,NNR-ESK-02,efficacy,high,Scala 0–60; endpoint Week 8,"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Score longitudinale; endpoint principale vincolato.
+depression_change_from_baseline,NNR-ESK-02,efficacy,high,Derivato,"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Derivato da score-baseline; QA su media endpoint.
+clinical_response,NNR-ESK-02,efficacy,high,≥50% riduzione; rate endpoint 42.0–58.0%,"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874","Derivato matematicamente, non sorteggiato."
+clinical_remission,NNR-ESK-02,efficacy,high,MADRS ≤ 10; rate endpoint 23.0–32.0%,"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874","Derivato matematicamente, tasso endpoint vincolato."
+depression_scale,NNR-DXB-03,efficacy,na,MADRS,"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Scala clinica associata allo studio.
+baseline_depression_score,NNR-DXB-03,efficacy,high,31–36 MADRS (anchor 33.6),"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Range stretto.
+depression_score,NNR-DXB-03,efficacy,high,Scala 0–60; endpoint Week 6,"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Score longitudinale; endpoint principale vincolato.
+depression_change_from_baseline,NNR-DXB-03,efficacy,high,mean -18.0–-14.0 (anchor -15.9),"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Derivato da score-baseline; QA su media endpoint.
+clinical_response,NNR-DXB-03,efficacy,high,≥50% riduzione; rate endpoint 49.0–59.0%,"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265","Derivato matematicamente, non sorteggiato."
+clinical_remission,NNR-DXB-03,efficacy,high,MADRS ≤ 10; rate endpoint 35.0–44.0%,"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265","Derivato matematicamente, tasso endpoint vincolato."
+depression_scale,NNR-SER-04,efficacy,na,PHQ-9,"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Scala clinica associata allo studio.
+baseline_depression_score,NNR-SER-04,efficacy,high,10–16 PHQ-9 (anchor 12.0),"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Range stretto.
+depression_score,NNR-SER-04,efficacy,high,Scala 0–27; endpoint Week 6,"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Score longitudinale; endpoint principale vincolato.
+depression_change_from_baseline,NNR-SER-04,efficacy,high,endpoint mean 6.8–9.2 (anchor 7.98),"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Derivato da score-baseline; QA su media endpoint.
+clinical_response,NNR-SER-04,efficacy,high,≥50% riduzione; derivato dagli score,"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251","Derivato matematicamente, non sorteggiato."
+clinical_remission,NNR-SER-04,efficacy,high,PHQ-9 ≤ 9; rate endpoint 58.0–68.0%,"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251","Derivato matematicamente, tasso endpoint vincolato."
+adverse_event,NNR-PSI-01,safety,medium,78.0%–90.0% (target 84.0%),"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Incidenza participant-level; evento registrato su una visita completata.
+serious_adverse_event,NNR-PSI-01,safety,medium,2.0%–8.0% (target 5.0%),"Goodwin et al., NEJM 2022, DOI 10.1056/NEJMoa2206443; Psilocybin systematic review/meta-analysis, PMID 39627679",Incidenza participant-level; evento registrato su una visita completata.
+ae_leading_to_discontinuation,NNR-PSI-01,safety,low,0.0%–6.0% (target 2.5%),Sanity check only,Incidenza participant-level; evento registrato su una visita completata.
+adverse_event,NNR-ESK-02,safety,medium,86.0%–96.0% (target 91.9%),"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Incidenza participant-level; evento registrato su una visita completata.
+serious_adverse_event,NNR-ESK-02,safety,high,3.5%–7.5% (target 5.7%),"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Incidenza participant-level; evento registrato su una visita completata.
+ae_leading_to_discontinuation,NNR-ESK-02,safety,high,2.5%–6.5% (target 4.2%),"ESCAPE-TRD, NEJM 2023, PMID 37792613; Esketamine safety analysis, PMID 38954874",Incidenza participant-level; evento registrato su una visita completata.
+adverse_event,NNR-DXB-03,safety,medium,55.0%–70.0% (target 61.7%),"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Incidenza participant-level; evento registrato su una visita completata.
+serious_adverse_event,NNR-DXB-03,safety,medium,0.0%–3.5% (target 1.5%),"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Incidenza participant-level; evento registrato su una visita completata.
+ae_leading_to_discontinuation,NNR-DXB-03,safety,high,4.0%–9.0% (target 6.2%),"GEMINI phase 3 RCT, PMID 35649167; DXM+bupropion systematic review, PMID 37792265",Incidenza participant-level; evento registrato su una visita completata.
+adverse_event,NNR-SER-04,safety,medium,25.0%–60.0% (target 42.0%),"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Incidenza participant-level; evento registrato su una visita completata.
+serious_adverse_event,NNR-SER-04,safety,medium,0.0%–4.0% (target 1.5%),"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Incidenza participant-level; evento registrato su una visita completata.
+ae_leading_to_discontinuation,NNR-SER-04,safety,medium,1.0%–8.0% (target 4.0%),"PANDA RCT, PMID 31543474; Sertraline dose-response meta-analysis, PMID 37557058; Network meta-analysis antidepressants, PMID 29477251",Incidenza participant-level; evento registrato su una visita completata.

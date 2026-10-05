@@ -1,0 +1,117 @@
+studies:
+  NNR-PSI-01: {intervention: Psilocibina, intervention_class: psichedelico, screened: 46, enrolled: 36, visits: 9, day0_start: "2026-02-02", day0_end: "2026-06-19", screening_min_day: -28, screening_max_day: -7}
+  NNR-ESK-02: {intervention: Esketamina, intervention_class: "antagonista NMDA", screened: 40, enrolled: 32, visits: 14, day0_start: "2026-03-02", day0_end: "2026-06-30", screening_min_day: -14, screening_max_day: -3}
+  NNR-DXB-03: {intervention: "Dextrometorfano + bupropione", intervention_class: "antidepressivo multimodale", screened: 54, enrolled: 44, visits: 8, day0_start: "2026-03-02", day0_end: "2026-06-30", screening_min_day: -21, screening_max_day: -7}
+  NNR-SER-04: {intervention: Sertralina, intervention_class: SSRI, screened: 54, enrolled: 42, visits: 8, day0_start: "2026-02-02", day0_end: "2026-05-29", screening_min_day: -21, screening_max_day: -7}
+
+sites:
+  SITE_01: {city: Roma, country: Italia}
+  SITE_02: {city: Milano, country: Italia}
+  SITE_03: {city: Barcellona, country: Spagna}
+  SITE_04: {city: Parigi, country: Francia}
+  SITE_05: {city: Amsterdam, country: "Paesi Bassi"}
+  SITE_06: {city: Berlino, country: Germania}
+  SITE_07: {city: Londra, country: "Regno Unito"}
+  SITE_08: {city: Zurigo, country: Svizzera}
+
+site_allocation:
+  NNR-PSI-01:
+    SITE_01: {screened: 12, enrolled: 10, monthly_target: 2}
+    SITE_03: {screened: 8, enrolled: 5, monthly_target: 2}
+    SITE_05: {screened: 13, enrolled: 11, monthly_target: 2}
+    SITE_07: {screened: 13, enrolled: 10, monthly_target: 2}
+
+  NNR-ESK-02:
+    SITE_02: {screened: 10, enrolled: 8, monthly_target: 2}
+    SITE_04: {screened: 10, enrolled: 8, monthly_target: 2}
+    SITE_06: {screened: 10, enrolled: 8, monthly_target: 2}
+    SITE_08: {screened: 10, enrolled: 8, monthly_target: 2}
+
+  NNR-DXB-03:
+    SITE_01: {screened: 14, enrolled: 12, monthly_target: 3}
+    SITE_04: {screened: 14, enrolled: 11, monthly_target: 3}
+    SITE_05: {screened: 13, enrolled: 10, monthly_target: 3}
+    SITE_08: {screened: 13, enrolled: 11, monthly_target: 3}
+
+  NNR-SER-04:
+    SITE_02: {screened: 15, enrolled: 12, monthly_target: 3}
+    SITE_03: {screened: 10, enrolled: 6, monthly_target: 3}
+    SITE_06: {screened: 15, enrolled: 12, monthly_target: 3}
+    SITE_07: {screened: 14, enrolled: 12, monthly_target: 3}
+
+recruitment:
+  NNR-PSI-01:
+    months: ["2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]
+    SITE_01: [2, 2, 2, 2, 2]
+    SITE_03: [2, 1, 1, 0, 1]
+    SITE_05: [2, 2, 3, 2, 2]
+    SITE_07: [2, 2, 2, 2, 2]
+
+  NNR-ESK-02:
+    months: ["2026-03", "2026-04", "2026-05", "2026-06"]
+    SITE_02: [2, 2, 2, 2]
+    SITE_04: [2, 2, 2, 2]
+    SITE_06: [2, 2, 2, 2]
+    SITE_08: [2, 2, 2, 2]
+
+  NNR-DXB-03:
+    months: ["2026-03", "2026-04", "2026-05", "2026-06"]
+    SITE_01: [3, 3, 3, 3]
+    SITE_04: [3, 3, 3, 2]
+    SITE_05: [3, 2, 3, 2]
+    SITE_08: [3, 3, 2, 3]
+
+  NNR-SER-04:
+    months: ["2026-02", "2026-03", "2026-04", "2026-05"]
+    SITE_02: [3, 3, 3, 3]
+    SITE_03: [3, 1, 1, 1]
+    SITE_06: [3, 3, 3, 3]
+    SITE_07: [3, 3, 3, 3]
+
+schedule:
+  NNR-PSI-01:
+    - {name: Screening, sequence: 1, target_day: null}
+    - {name: Preparazione 1, sequence: 2, target_day: -7}
+    - {name: "Preparazione 2 / Baseline", sequence: 3, target_day: -3}
+    - {name: Dosing Day, sequence: 4, target_day: 0}
+    - {name: Integrazione 1, sequence: 5, target_day: 1}
+    - {name: "Integrazione 2 / Week 1", sequence: 6, target_day: 7}
+    - {name: Week 3, sequence: 7, target_day: 21}
+    - {name: Week 6, sequence: 8, target_day: 42}
+    - {name: Week 12, sequence: 9, target_day: 84}
+
+  NNR-ESK-02:
+    - {name: Screening, sequence: 1, target_day: null}
+    - {name: Baseline, sequence: 2, target_day: 0}
+    - {name: Week 1 Dose 1, sequence: 3, target_day: 1}
+    - {name: Week 1 Dose 2, sequence: 4, target_day: 4}
+    - {name: Week 2 Dose 1, sequence: 5, target_day: 8}
+    - {name: Week 2 Dose 2, sequence: 6, target_day: 11}
+    - {name: Week 3 Dose 1, sequence: 7, target_day: 15}
+    - {name: Week 3 Dose 2, sequence: 8, target_day: 18}
+    - {name: Week 4 Dose 1, sequence: 9, target_day: 22}
+    - {name: Week 4 Dose 2, sequence: 10, target_day: 25}
+    - {name: Week 5, sequence: 11, target_day: 35}
+    - {name: Week 6, sequence: 12, target_day: 42}
+    - {name: Week 7, sequence: 13, target_day: 49}
+    - {name: Week 8, sequence: 14, target_day: 56}
+
+  NNR-DXB-03:
+    - {name: Screening, sequence: 1, target_day: null}
+    - {name: Baseline, sequence: 2, target_day: 0}
+    - {name: Week 1, sequence: 3, target_day: 7}
+    - {name: Week 2, sequence: 4, target_day: 14}
+    - {name: Week 3, sequence: 5, target_day: 21}
+    - {name: Week 4, sequence: 6, target_day: 28}
+    - {name: Week 6, sequence: 7, target_day: 42}
+    - {name: Follow-up Week 8, sequence: 8, target_day: 56}
+
+  NNR-SER-04:
+    - {name: Screening, sequence: 1, target_day: null}
+    - {name: Baseline, sequence: 2, target_day: 0}
+    - {name: Week 2, sequence: 3, target_day: 14}
+    - {name: Week 4, sequence: 4, target_day: 28}
+    - {name: Week 6, sequence: 5, target_day: 42}
+    - {name: Week 8, sequence: 6, target_day: 56}
+    - {name: Week 10, sequence: 7, target_day: 70}
+    - {name: Week 12, sequence: 8, target_day: 84}

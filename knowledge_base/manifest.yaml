@@ -1,0 +1,21 @@
+version: 1
+knowledge_base: TrialPulse Novera Internal KB
+language: it
+ingest:
+  - knowledge_base/00_scope.md
+  - knowledge_base/protocols/NNR-PSI-01.md
+  - knowledge_base/protocols/NNR-ESK-02.md
+  - knowledge_base/protocols/NNR-DXB-03.md
+  - knowledge_base/protocols/NNR-SER-04.md
+  - knowledge_base/reference/visit_schedule_windows.md
+  - knowledge_base/operations/clinical_operations_sop.md
+  - knowledge_base/operations/deviation_escalation_rules.md
+  - knowledge_base/operations/site_monitoring_guidelines.md
+  - knowledge_base/operations/roles_responsibilities.md
+  - knowledge_base/faq.md
+exclude:
+  - docs/references/plausibility_sources.md
+  - docs/references/kb_plausibility_notes.md
+  - tests/kb_query_set.md
+  - tests/test_validate_kb.py
+  - scripts/validate_kb.py

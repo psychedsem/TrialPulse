@@ -13,7 +13,7 @@ Elementi centrali per TrialPulse: struttura delle visite, caratteristiche operat
 Procedure interne come visit windows, escalation, completeness e monitoring operativo. Devono essere credibili e coerenti, ma sono regole Novera sintetiche e possono essere adattate al progetto.
 
 **LOW**  
-Naming interno, organizzazione dei documenti, FAQ e dettagli di handoff tra ruoli. Possono essere definiti liberamente purché siano realistici e coerenti.
+Naming interno, organizzazione dei documenti, FAQ e passaggi tra ruoli. Possono essere definiti liberamente purché siano realistici e coerenti.
 
 ## Quattro riferimenti principali
 

@@ -48,9 +48,9 @@ Verifica manuale delle risposte supportate dai documenti; non è un test del fut
 | 8 | «Per quale studio?» La finestra Week 6 varia tra i quattro studi. | KB-FAQ-01, KB-SCHED-01 |
 | 9 | Informazione non supportata dalla KB: nessuna soglia per aumento di dose disponibile. | KB-SCOPE-01, KB-FAQ-01 |
 
-Esito: 9/9 casi documentali supportano il comportamento atteso. Le query 10–12 restano preparatorie: nessun risultato di sito calcolato. Per la 12, Chat ha approvato `actual_date` come data operativa dell'evento; la regola è ora documentata in KB-RULES-01.
+Esito: 9/9 casi documentali supportano il comportamento atteso. Le query 10–12 restano preparatorie: nessun risultato di sito calcolato. Per la 12, `actual_date` è la data operativa dell'evento secondo la convenzione documentata in KB-RULES-01.
 
-## Ricontrollo dopo approvazione Chat - 2026-10-06
+## Ricontrollo delle convenzioni operative - 2026-10-06
 
 Query 3, 5 e 12 ricontrollate sui documenti aggiornati. Esempi manuali di interpretazione, senza implementare il Data Agent:
 

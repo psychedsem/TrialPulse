@@ -1,9 +1,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const sdk = vi.hoisted(() => ({ create: vi.fn() }));
-vi.mock("groq-sdk", () => ({ default: vi.fn(function () {
-  return { chat: { completions: { create: sdk.create } } };
-}) }));
+vi.mock("groq-sdk", () => ({
+  default: vi.fn(function () {
+    return { chat: { completions: { create: sdk.create } } };
+  })
+}));
 vi.mock("../src/config.js", () => ({ GROQ_API_KEY: "test-placeholder", GROQ_MODEL: "openai/gpt-oss-120b" }));
 import { generateCompletion } from "../src/llm.js";
 
@@ -19,4 +21,20 @@ it("invia i due tool nativi con scelta automatica senza ragionamento esposto", a
   expect(payload.tool_choice).toBe("auto");
   expect(payload.include_reasoning).toBe(false);
   expect(payload.tools.map(tool => tool.function.name)).toEqual(["search_knowledge", "analyze_operations"]);
+});
+
+it("espone al provider le due soglie numeriche senza obblighi globali o default", async () => {
+  sdk.create.mockResolvedValue({ choices: [{ message: { content: "Risposta." } }] });
+  await generateCompletion([{ role: "user", content: "Domanda" }]);
+  const schema = sdk.create.mock.calls[0][0].tools.find(tool => tool.function.name === "analyze_operations").function.parameters;
+  const parameters = schema.properties.parameters;
+  expect(parameters.properties).toBeDefined();
+  for (const key of ["attention_threshold_percent", "escalation_threshold_percent"]) {
+    expect(parameters.properties[key].type).toBe("number");
+    expect(parameters.properties[key].description).toBeTruthy();
+    expect(parameters.properties[key]).not.toHaveProperty("default");
+    expect(parameters.required || []).not.toContain(key);
+  }
+  expect(schema.required).not.toContain("parameters");
+  expect(parameters.additionalProperties).toBe(true);
 });

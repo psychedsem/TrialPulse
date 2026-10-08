@@ -4,23 +4,36 @@ import { TOOLS } from "./tools.js";
 
 const groq = new Groq({
   apiKey: GROQ_API_KEY,
-  timeout: 60000,
+  timeout: 60_000,
   maxRetries: 0,
 });
 
-export async function generateCompletion(messages) {
+export async function generateCompletion(messages, { allowTools = true } = {}) {
   if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY non configurata");
+    throw new Error("GROQ_API_KEY non configurata.");
   }
 
-  const completion = await groq.chat.completions.create({
+  const payload = {
     model: GROQ_MODEL,
     messages,
-    tools: TOOLS,
-    tool_choice: "auto",
-    temperature: 0.2,
+    reasoning_effort: "low",
     include_reasoning: false,
-  });
+    temperature: 0.2,
+    max_completion_tokens: 600,
+  };
 
-  return completion.choices[0]?.message;
+  if (allowTools) {
+    payload.tools = TOOLS;
+    payload.tool_choice = "auto";
+  }
+
+  const completion = await groq.chat.completions.create(payload);
+
+  const reply = completion.choices[0]?.message;
+
+  if (!reply) {
+    throw new Error("Il modello non ha restituito una risposta.");
+  }
+
+  return reply;
 }

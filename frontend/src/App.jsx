@@ -1,122 +1,164 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
+import { requestChat } from "./api/chat.js";
 
-function App() {
-  const [count, setCount] = useState(0)
+const INITIAL_MESSAGES = [
+  {
+    id: 0,
+    role: "assistant",
+    text: "Ciao, sono TrialPulse. Posso consultare la documentazione operativa Novera e analizzare i dati sintetici degli studi clinici. Quale studio, sito o criticità vuoi esaminare?",
+  },
+];
 
+function ArrowUpIcon() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
-export default App
+function Message({ role, text }) {
+  const isUser = role === "user";
+  return (
+    <article className={`message ${isUser ? "message--user" : "message--assistant"}`}>
+      <div className="message__content">
+        <div className="message__label">{isUser ? "Tu" : "TrialPulse"}</div>
+        <div className={`message__bubble ${isUser ? "message__bubble--glass" : "message__bubble--bot"}`}>
+          <span className="message__text">{text}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function App() {
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [draft, setDraft] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState("");
+  const nextId = useRef(1);
+  const scrollAreaRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const area = scrollAreaRef.current;
+    if (area) area.scrollTop = area.scrollHeight;
+  }, [messages, isSending, error]);
+
+  async function handleSend(event) {
+    event.preventDefault();
+    const message = draft.trim();
+    if (!message || isSending) return;
+
+    setMessages(current => [...current, { id: nextId.current++, role: "user", text: message }]);
+    setDraft("");
+    setError("");
+    setIsSending(true);
+
+    try {
+      const answer = await requestChat(message);
+      setMessages(current => [...current, { id: nextId.current++, role: "assistant", text: answer }]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Si è verificato un errore. Riprova.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function handleNewConversation() {
+    if (isSending) return;
+    setMessages(INITIAL_MESSAGES);
+    setDraft("");
+    setError("");
+    nextId.current = 1;
+    inputRef.current?.focus();
+  }
+
+  function handleComposerKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent?.isComposing) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <img
+          className="app-header__logo"
+          src="/brand/trialpulse-logo.png"
+          alt="TrialPulse"
+          width="1711"
+          height="562"
+        />
+        <div className="app-header__actions">
+          <button
+            className="app-header__new"
+            type="button"
+            onClick={handleNewConversation}
+            disabled={isSending}
+            aria-label="Nuova conversazione"
+            title="Nuova conversazione"
+          >
+            <span className="app-header__new-label">
+              <span>Nuova</span>
+              <span>Conversazione</span>
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <main className="chat-stage" aria-label="Conversazione TrialPulse">
+        <div ref={scrollAreaRef} className="chat-stage__scroll" role="log" aria-label="Messaggi della conversazione" aria-live="polite" aria-relevant="additions text">
+          <div className="chat-stage__inner">
+            {messages.map(message => (
+              <Message key={message.id} role={message.role} text={message.text} />
+            ))}
+            {isSending && (
+              <article className="message message--assistant" aria-label="TrialPulse sta rispondendo">
+                <div className="message__content">
+                  <div className="message__label">TrialPulse</div>
+                  <div className="message__bubble message__bubble--bot message__bubble--loading" role="status">
+                    <span>TrialPulse sta analizzando la richiesta</span>
+                    <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
+                  </div>
+                </div>
+              </article>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <section className="composer-region" aria-label="Scrivi a TrialPulse">
+        <form className="composer" onSubmit={handleSend}>
+          <label className="visually-hidden" htmlFor="message-input">Messaggio</label>
+          <textarea
+            id="message-input"
+            ref={inputRef}
+            className="composer__input"
+            placeholder="Scrivi un messaggio..."
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+            disabled={isSending}
+            rows={2}
+          />
+          <button
+            className="composer__submit"
+            type="submit"
+            aria-label="Invia messaggio"
+            title="Invia messaggio"
+            disabled={isSending || !draft.trim()}
+          >
+            <ArrowUpIcon />
+          </button>
+        </form>
+        {error && <p className="composer__error" role="alert">{error}</p>}
+        <p className="composer__disclaimer">
+          <strong>Novera Neuro Research</strong>
+          <span>: dati sintetici • supporto alle operazioni cliniche</span>
+        </p>
+      </section>
+    </div>
+  );
+}

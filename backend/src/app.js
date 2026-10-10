@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { orchestrate } from "./orchestrator.js";
+import { validateHistory } from "./history.js";
 
 export const app = express();
 
@@ -23,8 +24,15 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 
+  let history;
   try {
-    return res.json(await orchestrate(message.trim()));
+    history = validateHistory(req.body.history);
+  } catch {
+    return res.status(400).json({ error: "Cronologia della conversazione non valida." });
+  }
+
+  try {
+    return res.json(await orchestrate(message.trim(), history));
   } catch {
     return res.status(502).json({
       error: "Non è stato possibile completare la richiesta al modello entro i limiti operativi. Riprova o semplifica la domanda.",

@@ -1,14 +1,14 @@
 const FALLBACK_ERROR = "Il servizio non è disponibile in questo momento. Riprova tra poco.";
 
 /** Invia un messaggio al backend senza esporre indirizzi o credenziali nel browser. */
-export async function requestChat(message, fetchImpl = globalThis.fetch) {
+export async function requestChat(message, fetchImpl = globalThis.fetch, history) {
   let response;
 
   try {
     response = await fetchImpl("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(history === undefined ? { message } : { message, history }),
     });
   } catch {
     throw new Error(FALLBACK_ERROR);

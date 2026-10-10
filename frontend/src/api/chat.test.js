@@ -4,6 +4,16 @@ import { requestChat } from "./chat.js";
 
 const response = (ok, payload) => ({ ok, json: async () => payload });
 
+test("invia gli scambi precedenti senza duplicare il messaggio corrente", async () => {
+  let body;
+  const history = [{ role: "user", content: "Parliamo di PSI." }, { role: "assistant", content: "Studio NNR-PSI-01." }];
+  await requestChat("E la Week 6?", async (url, options) => {
+    body = JSON.parse(options.body);
+    return response(true, { answer: "Risposta simulata.", tools_used: [] });
+  }, history);
+  assert.deepEqual(body, { message: "E la Week 6?", history });
+});
+
 test("invia il messaggio al contratto API corretto", async () => {
   const calls = [];
   const answer = await requestChat("Quali siti hanno query aging elevato?", async (...args) => {

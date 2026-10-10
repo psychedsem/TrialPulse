@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { requestChat } from "./api/chat.js";
+import { MessageText } from "./MessageText.js";
+import { loadConversation, saveConversation, selectHistory, resetConversation } from "./conversation.js";
 
 const INITIAL_MESSAGES = [
   {
@@ -24,7 +26,7 @@ function Message({ role, text }) {
       <div className="message__content">
         <div className="message__label">{isUser ? "Tu" : "TrialPulse"}</div>
         <div className={`message__bubble ${isUser ? "message__bubble--glass" : "message__bubble--bot"}`}>
-          <span className="message__text">{text}</span>
+          <MessageText role={role} text={text} />
         </div>
       </div>
     </article>
@@ -32,11 +34,15 @@ function Message({ role, text }) {
 }
 
 export default function App() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [history, setHistory] = useState(loadConversation);
+  const [messages, setMessages] = useState(() => [
+    ...INITIAL_MESSAGES,
+    ...history.map(({ role, content }, index) => ({ id: index + 1, role, text: content })),
+  ]);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
-  const nextId = useRef(1);
+  const nextId = useRef(messages.length);
   const scrollAreaRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -56,7 +62,10 @@ export default function App() {
     setIsSending(true);
 
     try {
-      const answer = await requestChat(message);
+      const answer = await requestChat(message, globalThis.fetch, selectHistory(history));
+      const completed = [...history, { role: "user", content: message }, { role: "assistant", content: answer }];
+      saveConversation(completed);
+      setHistory(completed);
       setMessages(current => [...current, { id: nextId.current++, role: "assistant", text: answer }]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Si è verificato un errore. Riprova.");
@@ -67,6 +76,8 @@ export default function App() {
 
   function handleNewConversation() {
     if (isSending) return;
+    if (!resetConversation(messages.length > 1 || Boolean(draft.trim()))) return;
+    setHistory([]);
     setMessages(INITIAL_MESSAGES);
     setDraft("");
     setError("");

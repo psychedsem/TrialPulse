@@ -82,9 +82,10 @@ async function runTool(call, cache, toolsUsed) {
   }
 }
 
-export async function orchestrate(message) {
+export async function orchestrate(message, history = []) {
   const messages = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...history.map(({ role, content }) => ({ role, content })),
     { role: "user", content: message },
   ];
   const toolsUsed = new Set();

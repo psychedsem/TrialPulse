@@ -148,6 +148,19 @@ button, textarea { font: inherit; }
 
 .message__text { position: relative; z-index: 1; }
 
+.message__text--markdown { white-space: normal; }
+.message__text--markdown :where(p, ul, ol, pre, blockquote, h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  font: inherit;
+}
+.message__text--markdown > * + * { margin-top: 1lh; }
+.message__text--markdown :where(p, li, pre) { white-space: pre-wrap; }
+.message__text--markdown :where(ul, ol) { padding-inline-start: 1.5em; }
+.message__text--markdown code { font: inherit; }
+.message__text--markdown a { color: inherit; }
+.message__text--markdown strong { font-weight: 700; }
+.message__text--markdown em { font-synthesis: style; }
+
 .message__bubble--bot {
   background: #fff;
   border: 1px solid #051466;

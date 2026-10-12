@@ -5,6 +5,7 @@ import { buildVisitRules, selectKnowledge } from "../src/documentAdapter.js";
 import { executeTool } from "../src/toolExecutor.js";
 import { orchestrate } from "../src/orchestrator.js";
 import { generateCompletion } from "../src/llm.js";
+import { completenessFixture } from "./fixtures/completeness.js";
 
 vi.mock("../src/llm.js", () => ({ generateCompletion: vi.fn() }));
 afterEach(() => { vi.unstubAllGlobals(); vi.resetAllMocks(); });
@@ -42,7 +43,8 @@ const reports = round => generateCompletion.mock.calls[round][0]
 const posted = (fetch, index = -1) => JSON.parse(fetch.mock.calls.at(index)[1].body);
 
 function mockHttp({ retrieve = retriever(fixtures()), analyzeResult = body => ({
-  analysis: body.analysis, parameters_applied: body.parameters, results: [{ site_id: "SITE_01" }],
+  analysis: body.analysis, parameters_applied: body.parameters || {}, results: [{ site_id: "SITE_01" }],
+  scope: { group_by: body.group_by || [] },
   data_quality: { excluded_records: 15, warnings: ["Date inutilizzabili."] },
 }) } = {}) {
   const fetch = vi.fn(async (url, { body: json }) => {
@@ -120,8 +122,12 @@ it("ordina per cosine distance e deduplica senza soglia arbitraria", () => {
 it("inoltra 35 finestre e filtri senza ripetere le tabelle al modello", async () => {
   const fetch = mockHttp();
   replies({ tool_calls: [analyze({ analysis: "out_of_window", filters: { site_id: "SITE_01" }, group_by: ["site_id"] })] }, { content: "Review richiesta." });
-  await orchestrate("Quali siti superano la soglia Novera di visite out-of-window?");
+  const final = await orchestrate("Quali siti superano la soglia Novera di visite out-of-window?");
   expect(posted(fetch).parameters.visit_windows).toHaveLength(35);
+  expect(final.answer.startsWith("Review richiesta.")).toBe(true);
+  expect(final.answer).toContain("Regole documentali attestate e applicate");
+  expect(final.answer).toContain("CSV operativo TrialPulse (dati sintetici)");
+  expect(final.answer).not.toMatch(/knowledge_base\/|document_support|distance|similarity/);
   expect(posted(fetch).filters).toEqual({ site_id: "SITE_01" });
   expect(reports(1)[0].parameters_applied.visit_windows).toBeUndefined();
   expect(reports(1)[0].document_support.coverage.complete).toBe(true);
@@ -166,7 +172,7 @@ it("riusa la stessa analisi e produce una finale senza tool", async () => {
   replies({ tool_calls: [request] }, { tool_calls: [request] }, { content: "Verificato." });
   await orchestrate("Domanda");
   expect(fetch).toHaveBeenCalledTimes(1);
-  expect(generateCompletion.mock.calls[2][1]).toEqual({ allowTools: false });
+  expect(generateCompletion.mock.calls[2][1]).toMatchObject({ allowTools: false });
 });
 it("non espone l'errore grezzo di un retrieval non disponibile", async () => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("segreto di servizio")));
@@ -183,31 +189,33 @@ it.each([
 ])("preserva documenti e parametri di %s", async (analysis, source, heading, parameters, group_by) => {
   const fetch = mockHttp({
     retrieve: async () => [{ source, section: heading, text: section(source, heading), distance: 0.15 }],
-    analyzeResult: body => ({ analysis, parameters_applied: body.parameters, results: [] }),
+    analyzeResult: body => analysis === "completeness_threshold" ? completenessFixture(body.parameters) :
+      ({ analysis, scope: { group_by: [] }, parameters_applied: body.parameters, data_quality: {}, results: [] }),
   });
   replies({ tool_calls: [search(heading)] }, { tool_calls: [analyze({ analysis, parameters, ...(group_by ? { group_by } : {}) })] }, { content: "Analisi verificata." });
   const result = await orchestrate("Applica la regola documentale ai dati.");
   expect(result.tools_used).toEqual(["search_knowledge", "analyze_operations"]);
   expect(posted(fetch, 1).parameters).toEqual(parameters);
-  expect(reports(2)[0].results[0].source).toBe(source);
+  expect(reports(2)[0].results[0]).toEqual({ text: section(source, heading), section: heading,
+    title: analysis === "completeness_threshold" ? "SOP sintetica - Clinical Operations" : "Regole deviazioni ed escalation" });
   expect(reports(2)[1].analysis).toBe(analysis);
   expect(reports(2)[1].parameters_applied).toEqual(parameters);
 });
 it("mantiene completeness descrittiva senza inventare classificazioni", async () => {
   const fetch = mockHttp({ analyzeResult: body => ({
-    analysis: body.analysis, results: [{ site_id: "SITE_01", completeness_rate: 96.78 }],
+    analysis: body.analysis, scope: { group_by: body.group_by }, parameters_applied: {}, data_quality: {}, results: [{ site_id: "SITE_01", completeness_rate: 96.78 }],
   }) });
   replies({ tool_calls: [analyze({ analysis: "completeness", group_by: ["site_id"] })] }, { content: "KPI descrittivo." });
   await orchestrate("Mostra le percentuali di completeness per sito, senza classificazione.");
   expect(posted(fetch, 0)).toEqual({ analysis: "completeness", group_by: ["site_id"] });
   expect(reports(1)[0].results).toEqual([{ site_id: "SITE_01", completeness_rate: 96.78 }]);
-  expect(reports(1)[0].parameters_applied).toBeUndefined();
+  expect(reports(1)[0].parameters_applied).toEqual({});
 });
 it("non sostituisce soglie esterne con valori Novera impliciti", async () => {
   const parameters = { attention_threshold_percent: 98, escalation_threshold_percent: 97 };
   mockHttp({ analyzeResult: body => ({
-    analysis: body.analysis, parameters_applied: body.parameters,
-    results: [{ site_id: "SITE_01", completeness_rate: 96.78, classification: "escalation" }],
+    ...completenessFixture(body.parameters),
+    results: [{ ...completenessFixture(body.parameters).results[0], classification: "escalation" }],
   }) });
   replies({ tool_calls: [analyze({ analysis: "completeness_threshold", group_by: ["site_id"], parameters })] }, { content: "Classificazione ricevuta." });
   await orchestrate("Applica le soglie già disponibili.");
@@ -240,10 +248,14 @@ it.each([[8, 15, 3], [4, 6, 2]])("conserva warning e zero esclusioni completenes
     { tool_calls: [analyze({ analysis: "completeness_threshold", group_by: ["site_id"], parameters })] },
     { content: "Risposta simulata, senza riscrittura." });
   const final = await orchestrate("Quali siti richiedono attenzione o escalation per data completeness secondo Novera?");
-  expect(reports(2)[0].results[0]).toMatchObject({ source: sop, section: "Data completeness", text: section(sop, "Data completeness") });
+  expect(reports(2)[0].results[0]).toEqual({ title: "SOP sintetica - Clinical Operations", section: "Data completeness", text: section(sop, "Data completeness") });
   expect(reports(2)[1]).toEqual({ analysis: "completeness_threshold", scope, parameters_applied: parameters, results, data_quality });
   expect(posted(fetch, 1)).toEqual({ analysis: "completeness_threshold", group_by: ["site_id"], parameters });
-  expect(final).toEqual({ answer: "Risposta simulata, senza riscrittura.", tools_used: ["search_knowledge", "analyze_operations"] });
+  expect(final.tools_used).toEqual(["search_knowledge", "analyze_operations"]);
+  expect(final.answer).not.toContain("Risposta simulata, senza riscrittura.");
+  expect(final.answer).toContain(`Duplicati rimossi dalla vista analitica: ${duplicates}`);
+  expect(final.answer).toContain("Record esclusi dalla specifica analisi: 0");
+  for (const row of results) expect(final.answer).toContain(row.site_id);
 });
 it("preserva le esclusioni out-of-window distinte dai warning generali", async () => {
   const scope = { group_by: ["site_id"] };

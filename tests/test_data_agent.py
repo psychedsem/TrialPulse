@@ -166,6 +166,19 @@ class DataAgentTests(unittest.TestCase):
         self.assertTrue(result["trigger_met"])
         self.assertEqual(result["first_trigger_months"], ["2026-03", "2026-04"])
 
+    def test_recruitment_counts_remain_separate_after_participant_deduplication(self):
+        with self.fixture(study_id=["NNR-PSI-01"]*3+["NNR-SER-04"]*2,
+                          site_id=["SITE_03"]*5, participant_id=["P1", "P1", "P2", "S1", "S2"],
+                          screening_failure=[False]*5,
+                          enrollment_date=pd.to_datetime(["2026-02-01", "2026-03-01", "2026-03-02", "2026-02-03", "2026-02-04"])):
+            result = self.analyze("recruitment_target", filters={"site_id": "SITE_03"},
+                                  parameters={"threshold_percent": 75, "consecutive_months": 2})
+        groups = {row["study_id"]: row["monthly"] for row in result["results"]}
+        self.assertEqual([row["actual_enrolled"] for row in groups["NNR-PSI-01"]], [1, 1, 0, 0, 0])
+        self.assertEqual([row["actual_enrolled"] for row in groups["NNR-SER-04"]], [2, 0, 0, 0])
+        self.assertEqual([row["achievement_percent"] for row in groups["NNR-PSI-01"][:2]], [50, 50])
+        self.assertEqual(groups["NNR-SER-04"][0]["achievement_percent"], 66.67)
+
     def test_monthly_recruitment_cumulative(self):
         result = self.analyze("recruitment", filters={"study_id": "NNR-SER-04", "site_id": "SITE_03"}, group_by=["month"])
         self.assertEqual([row["cumulative_enrolled"] for row in result["results"]], [3, 4, 5, 6])

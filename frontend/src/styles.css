@@ -155,11 +155,22 @@ button, textarea { font: inherit; }
 }
 .message__text--markdown > * + * { margin-top: 1lh; }
 .message__text--markdown :where(p, li, pre) { white-space: pre-wrap; }
+.message__text--markdown li:has(> p) { white-space: normal; }
 .message__text--markdown :where(ul, ol) { padding-inline-start: 1.5em; }
 .message__text--markdown code { font: inherit; }
 .message__text--markdown a { color: inherit; }
 .message__text--markdown strong { font-weight: 700; }
 .message__text--markdown em { font-synthesis: style; }
+.message__table-scroll { max-width: 100%; overflow-x: auto; }
+.message__table-scroll table { border-collapse: collapse; font: inherit; }
+.message__table-scroll :where(th, td) {
+  padding: .35em .65em;
+  border: 1px solid rgba(11, 26, 102, .16);
+  text-align: left;
+  white-space: nowrap;
+}
+.message__table-scroll th { font-weight: 700; }
+.message__table-scroll:focus-visible { outline: 2px solid #7ccad0; outline-offset: 2px; }
 
 .message__bubble--bot {
   background: #fff;

@@ -2,15 +2,12 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "",
   "main": "src/server.js",
   "scripts": {
     "test": "vitest run",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",

@@ -224,18 +224,19 @@ def consecutive_missed(df, parameters):
 def recruitment_target(df, parameters, filters):
     design = yaml.safe_load(DESIGN_PATH.read_text(encoding="utf-8"))
     results = []
+    actual = None
     for study, calendar in design["recruitment"].items():
         if filters.get("study_id") and filters["study_id"] != study:
             continue
         for site, allocation in design["site_allocation"][study].items():
             if filters.get("site_id") and filters["site_id"] != site:
                 continue
-            subset = df.loc[df.study_id.eq(study) & df.site_id.eq(site)]
-            actual = subset.groupby(subset.enrollment_date.dt.strftime("%Y-%m")).participant_id.nunique()
+            if actual is None:
+                actual = df.groupby(["study_id", "site_id", df.enrollment_date.dt.strftime("%Y-%m")]).participant_id.nunique()
             monthly, streak, trigger, previous = [], [], None, None
             for month in calendar["months"]:
                 target = allocation["monthly_target"]
-                count = int(actual.get(month, 0))
+                count = int(actual.get((study, site, month), 0))
                 achievement = ratio(count, target)
                 below = achievement < parameters["threshold_percent"] if achievement is not None else None
                 period = pd.Period(month, freq="M")
@@ -286,6 +287,10 @@ def analyze_dataset(source, quality, request):
             info["exclusions_by_reason"][reason] = len(rows)
             info["warnings"].append(f"{len(rows)} righe escluse dal calcolo pertinente: {reason}.")
 
+    def exclude_rows(rows, mask, reason):
+        report(rows.loc[mask], reason)
+        return rows.loc[~mask]
+
     if analysis in {"retention", "safety", "visits", "consecutive_missed", "recruitment", "recruitment_target"}:
         df = df.loc[df.screening_failure.eq(False)]
     if analysis in {"visits", "consecutive_missed"}:
@@ -294,21 +299,18 @@ def analyze_dataset(source, quality, request):
         df = df.loc[df.required_assessments.gt(0)]
     if analysis in {"recruitment", "recruitment_target"}:
         df = df.drop_duplicates("participant_id")
-        report(df.loc[df.enrollment_date.isna()], "enrollment_date mancante o non valida")
-        df = df.loc[df.enrollment_date.notna()]
+        df = exclude_rows(df, df.enrollment_date.isna(), "enrollment_date mancante o non valida")
         if "month" in groups:
             df["month"] = df.enrollment_date.dt.strftime("%Y-%m")
     if analysis in {"queries", "query_aging_threshold"}:
-        report(df.loc[~df._query_consistent], "query incoerenti")
-        df = df.loc[df._query_consistent]
+        df = exclude_rows(df, ~df._query_consistent, "query incoerenti")
         if analysis == "queries":
             report(df.loc[(df.data_queries_opened-df.data_queries_open).gt(0) & df.mean_query_resolution_days.isna()],
                    "resolution mancante (solo media)")
             report(df.loc[df.data_queries_open.gt(0) & df.oldest_open_query_days.isna()], "aging mancante (solo aging)")
         else:
             df = df.loc[df.data_queries_open.gt(0)]
-            report(df.loc[df.oldest_open_query_days.isna()], "aging mancante")
-            df = df.loc[df.oldest_open_query_days.notna()]
+            df = exclude_rows(df, df.oldest_open_query_days.isna(), "aging mancante")
     if analysis in {"deviations", "major_deviations_window"}:
         df = df.loc[df.protocol_deviations.gt(0)]
         if analysis == "major_deviations_window":
@@ -330,8 +332,7 @@ def analyze_dataset(source, quality, request):
         df["_window_days"] = [lookup.get((study, visit)) for study, visit in zip(df.study_id, df.visit_name)]
         df = df.loc[df._window_days.notna() & df.visit_status.eq("completed")]
         usable = df._actual_date_usable & df.target_date.notna()
-        report(df.loc[~usable], "date visita inutilizzabili")
-        df = df.loc[usable].copy()
+        df = exclude_rows(df, ~usable, "date visita inutilizzabili").copy()
         df["_out_of_window"] = (df.actual_date-df.target_date).dt.days.abs().gt(df._window_days)
     if analysis == "monitoring":
         outliers = df.monitoring_minutes.le(10) | df.monitoring_minutes.ge(500)

@@ -33,7 +33,17 @@ app.post("/api/chat", async (req, res) => {
 
   try {
     return res.json(await orchestrate(message.trim(), history));
-  } catch {
+  } catch (error) {
+    const reason = typeof error?.status === "number" ? "provider_http_error" :
+      typeof error?.message === "string" && error.message.includes("risposta finale") ?
+        "final_answer_error" : "orchestration_error";
+    const status = reason === "provider_http_error" && Number.isInteger(error.status)
+      ? `; status=${error.status}` : "";
+    const diagnostic = error?.providerDiagnostics;
+    const fields = diagnostic ? `; round=${diagnostic.round}; code=${diagnostic.code}; type=${diagnostic.type}; model=${diagnostic.model}; category=${diagnostic.category}; phase=${diagnostic.phase}` : "";
+    try {
+      console.warn(`[TrialPulse] /api/chat non completata: ${reason}${status}${fields}`);
+    } catch { /* La diagnostica non deve impedire la risposta controllata. */ }
     return res.status(502).json({
       error: "Non è stato possibile completare la richiesta al modello entro i limiti operativi. Riprova o semplifica la domanda.",
     });

@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Archivio locale non destinato alla distribuzione
+/back+front-end_cleaned.zip
+
 # Node
 node_modules/
 frontend/node_modules/

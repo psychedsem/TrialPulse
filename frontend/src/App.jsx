@@ -19,14 +19,17 @@ function ArrowUpIcon() {
   );
 }
 
-function Message({ role, text }) {
+function Message({ role, text, loading = false }) {
   const isUser = role === "user";
   return (
-    <article className={`message ${isUser ? "message--user" : "message--assistant"}`}>
+    <article className={`message ${isUser ? "message--user" : "message--assistant"}`} aria-label={loading ? "TrialPulse sta rispondendo" : undefined}>
       <div className="message__content">
         <div className="message__label">{isUser ? "Tu" : "TrialPulse"}</div>
-        <div className={`message__bubble ${isUser ? "message__bubble--glass" : "message__bubble--bot"}`}>
-          <MessageText role={role} text={text} />
+        <div className={`message__bubble ${isUser ? "message__bubble--glass" : "message__bubble--bot"}${loading ? " message__bubble--loading" : ""}`} role={loading ? "status" : undefined}>
+          {loading ? <>
+            <span>TrialPulse sta analizzando la richiesta</span>
+            <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
+          </> : <MessageText role={role} text={text} />}
         </div>
       </div>
     </article>
@@ -125,17 +128,7 @@ export default function App() {
             {messages.map(message => (
               <Message key={message.id} role={message.role} text={message.text} />
             ))}
-            {isSending && (
-              <article className="message message--assistant" aria-label="TrialPulse sta rispondendo">
-                <div className="message__content">
-                  <div className="message__label">TrialPulse</div>
-                  <div className="message__bubble message__bubble--bot message__bubble--loading" role="status">
-                    <span>TrialPulse sta analizzando la richiesta</span>
-                    <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
-                  </div>
-                </div>
-              </article>
-            )}
+            {isSending && <Message role="assistant" loading />}
           </div>
         </div>
       </main>

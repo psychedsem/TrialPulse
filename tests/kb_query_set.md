@@ -1,6 +1,6 @@
-# Query QA preliminari - Knowledge Base
+# Query QA - Knowledge Base e analisi operative
 
-Questo file serve solo per il QA documentale della Knowledge Base. Non è il set finale di domande demo.
+Questo file raccoglie scenari di verifica documentale e di applicazione delle regole ai dati sintetici. I verbali datati sotto attestano soltanto le verifiche allora eseguite, non il successo autonomo dell'agente per ogni domanda.
 
 ## RAG-only
 
@@ -24,17 +24,20 @@ Atteso: richiesta di specificare lo studio.
 
 Atteso: dichiarare che la KB non supporta questa informazione.
 
-## Futuri casi RAG → Data
+## Casi RAG → Data e limiti temporali
 
 10. Quali siti superano il 10% di visite out-of-window?
 11. Quali siti hanno query aging oltre la soglia Novera?
-12. Ci sono siti con almeno 3 major deviations negli ultimi 30 giorni?
+12. Ci sono siti con almeno 3 major deviations in una finestra mobile di 30 giorni?
+13. Ci sono siti con almeno 3 major deviations negli ultimi 30 giorni rispetto a una data di riferimento?
 
-Queste ultime domande richiederanno, nelle fasi successive, retrieval della regola e applicazione ai dati.
+Le query 10 e 11 richiedono il recupero della regola e il calcolo del Data Agent. La query 12 è rappresentabile da `major_deviations_window`: rileva finestre mobili nella storia disponibile, usando le date operative valide. Il totale storico delle deviations non sostituisce questo controllo.
+
+La query 13 richiede invece un intervallo recente rispetto a una data esplicita. Il contratto attuale non offre questo filtro temporale: dichiarare il limite, senza presentare il calcolo mobile come risposta agli ultimi 30 giorni e senza attribuire un PASS a tale capacità. Le soglie Novera restano invariate.
 
 ## Esito QA documentale - 2026-10-06
 
-Verifica manuale delle risposte supportate dai documenti; non è un test del futuro LLM o del retrieval.
+Verifica manuale delle risposte supportate dai documenti; non è un test dell'LLM o del retrieval.
 
 | Query | Risposta attesa verificata | Fonte interna |
 |---|---|---|
@@ -48,11 +51,11 @@ Verifica manuale delle risposte supportate dai documenti; non è un test del fut
 | 8 | «Per quale studio?» La finestra Week 6 varia tra i quattro studi. | KB-FAQ-01, KB-SCHED-01 |
 | 9 | Informazione non supportata dalla KB: nessuna soglia per aumento di dose disponibile. | KB-SCOPE-01, KB-FAQ-01 |
 
-Esito: 9/9 casi documentali supportano il comportamento atteso. Le query 10–12 restano preparatorie: nessun risultato di sito calcolato. Per la 12, `actual_date` è la data operativa dell'evento secondo la convenzione documentata in KB-RULES-01.
+Esito alla data del verbale: 9/9 casi documentali supportano il comportamento atteso; nessun risultato di sito calcolato per le query 10–12. `actual_date` è la data operativa dell'evento secondo la convenzione documentata in KB-RULES-01. Questa evidenza documentale non verifica la capacità di calcolare un intervallo recente della query 13.
 
 ## Ricontrollo delle convenzioni operative - 2026-10-06
 
-Query 3, 5 e 12 ricontrollate sui documenti aggiornati. Esempi manuali di interpretazione, senza implementare il Data Agent:
+Query 3, 5 e regola temporale ricontrollate sui documenti aggiornati. Esempi manuali di interpretazione, non esecuzioni del Data Agent:
 
 - Completeness: Screening completato con 4 assessment richiesti e 1 mancante, più una visita con 8 richiesti e 0 mancanti → `(12 - 1) / 12 × 100 = 91,67%`, attenzione. Una visita non completed con 0 richiesti è esclusa. La media delle percentuali sarebbe 87,5% e non va usata.
 - Soglie: 95% non richiede attenzione; 90% richiede attenzione, ma non escalation; 89% richiede escalation.

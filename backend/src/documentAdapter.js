@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 const SCHEDULE_SOURCE = "knowledge_base/reference/visit_schedule_windows.md";
 const SCOPE_SOURCE = "knowledge_base/00_scope.md";
 
-async function verifySection({ source, section, text }) {
+export async function verifySection({ source, section, text }) {
   let document;
   try {
     document = (await readFile(new URL(`../../${source}`, import.meta.url), "utf8"))
@@ -41,6 +41,44 @@ export function selectKnowledge(chunks) {
         ? { ...chunk, similarity: 1 - chunk.distance }
         : chunk,
     );
+}
+
+export async function buildCompletenessRules(retrieve) {
+  const source = "knowledge_base/operations/clinical_operations_sop.md";
+  const section = "Data completeness";
+  const chunks = selectKnowledge(await retrieve("Regola Novera completeness attenzione escalation", {
+    $and: [{ source }, { section }],
+  }));
+  if (!chunks.length || chunks.some(chunk =>
+    chunk.source !== source || chunk.section !== section ||
+    typeof chunk.text !== "string" || !chunk.text.trim() || !Number.isFinite(chunk.distance))) {
+    throw new Error("Supporto documentale completeness mancante o non pertinente.");
+  }
+  if (new Set(chunks.map(chunk => chunk.text)).size !== 1) {
+    throw new Error("Regole completeness conflittuali nella documentazione.");
+  }
+  await verifySection(chunks[0]);
+
+  const text = chunks[0].text.replaceAll("**", "");
+  const noAction = [...text.matchAll(/^- completeness ≥(\d+(?:[.,]\d+)?)%: nessuna azione;?\s*$/gm)];
+  const attention = [...text.matchAll(/^- completeness (\d+(?:[.,]\d+)?)%-<(\d+(?:[.,]\d+)?)%: attenzione(?: operativa)?;?\s*$/gm)];
+  const escalation = [...text.matchAll(/^- completeness <(\d+(?:[.,]\d+)?)%: escalation\.?\s*$/gm)];
+  const rules = [...text.matchAll(/^- completeness\b.*$/gm)];
+  if (rules.length !== 3 || noAction.length !== 1 || attention.length !== 1 || escalation.length !== 1) {
+    throw new Error("Regola completeness incompleta o ambigua: richieste soglie strettamente inferiori.");
+  }
+  const number = value => Number(value.replace(",", "."));
+  const upper = number(attention[0][2]);
+  const lower = number(escalation[0][1]);
+  if (lower < 0 || upper > 100 || lower >= upper ||
+    number(attention[0][1]) !== lower || number(noAction[0][1]) !== upper) {
+    throw new Error("Soglie completeness incoerenti nella documentazione.");
+  }
+  const { distance, similarity } = chunks[0];
+  return {
+    parameters: { attention_threshold_percent: upper, escalation_threshold_percent: lower },
+    support: { sources: [{ source, section, distance, similarity }], comparison: "<" },
+  };
 }
 
 function parseProtocolSchedule(study, protocol) {

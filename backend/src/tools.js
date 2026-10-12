@@ -51,26 +51,42 @@ export const TOOLS = [
             type: "string",
             enum: ANALYSES,
             description:
-              "completeness: solo percentuali descrittive, nessuna classificazione. completeness_threshold: classifica attenzione/escalation/nessuna azione con le due soglie recuperate tramite search_knowledge; obbligatoria per valutare i siti secondo le regole Novera di completeness. Non sostituirla con completeness e un confronto manuale. Per le altre soglie documentali usa l'analisi parametrica dedicata.",
+              "completeness: solo percentuali descrittive, nessuna classificazione. completeness_threshold: classifica attenzione/escalation/nessuna azione; per regole Novera esplicite usa rule_source novera_kb, per soglie personalizzate fornisci entrambe le soglie. Non sostituirla con completeness e un confronto manuale. Per le altre soglie documentali usa l'analisi parametrica dedicata.",
+          },
+          rule_source: {
+            type: "string",
+            enum: ["novera_kb"],
+            description: "Solo per completeness_threshold: usa novera_kb quando l'utente richiede esplicitamente le regole Novera. Il backend recupera e verifica le soglie mancanti tramite RAG; i valori presenti devono essere coerenti con tale regola. Per soglie personalizzate ometti rule_source e fornisci entrambe le soglie.",
           },
           filters: {
             type: "object",
             description:
-              "Filtri opzionali: study_id, site_id, participant_id, visit_name.",
-            additionalProperties: true,
+              "Filtri scalari opzionali: una stringa per campo, mai array. Per confrontare studi usa il perimetro più ampio o richieste separate. recruitment_target ammette solo study_id e site_id.",
+            properties: Object.fromEntries(["study_id", "site_id", "participant_id", "visit_name"]
+              .map(key => [key, { type: "string" }])),
+            additionalProperties: false,
           },
           group_by: {
             type: "array",
             description:
-              "Raggruppamento opzionale: site_id per siti o study_id per studi, se supportato. major_deviations_window produce già risultati per sito: ometti group_by.",
+              "Obbligatorio per completeness_threshold: [] aggrega il perimetro selezionato, [site_id] valuta i siti, [study_id] gli studi, entrambi le coppie studio/sito. Per le altre analisi è opzionale, se supportato. recruitment_target restituisce gia risultati mensili per studio e sito: ometti group_by. major_deviations_window produce già risultati per sito: ometti group_by.",
             items: {
               type: "string",
-              enum: ["site_id", "study_id"],
+              enum: ["site_id", "study_id", "visit_name", "month"],
             },
           },
           parameters: {
             type: "object",
             properties: {
+              threshold_percent: {
+                type: "number",
+                description: "Per recruitment_target: soglia percentuale di raggiungimento del target mensile recuperata dalla KB. Obbligatoria insieme a consecutive_months.",
+              },
+              consecutive_months: {
+                type: "integer",
+                minimum: 1,
+                description: "Per recruitment_target: numero di mesi consecutivi sotto soglia richiesto dalla regola documentale. Obbligatorio insieme a threshold_percent.",
+              },
               attention_threshold_percent: {
                 type: "number",
                 description: "Per completeness_threshold: soglia percentuale documentale sotto cui è richiesta attenzione. Recuperala dalla KB; deve essere maggiore della soglia di escalation.",

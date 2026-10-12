@@ -62,24 +62,34 @@ const toolCall = (name, args, id = "c1") => ({
 });
 
 it.each([
-  ["search_knowledge", { query: "Week 6 NNR-PSI-01" }, { results: [{ text: "Week 6 ±4 giorni", source: "knowledge_base/protocols/NNR-PSI-01.md", section: "Visite", distance: 0.2, similarity: 0.8 }] }],
-  ["analyze_operations", { analysis: "visits", filters: { study_id: "NNR-PSI-01" } }, { analysis: "visits", scope: { study_id: "NNR-PSI-01" }, results: [{ completed: 10 }] }],
+  ["search_knowledge", { query: "Week 6 NNR-PSI-01" }, { results: [{ text: "Week 6 ±4 giorni", source: "knowledge_base/protocols/NNR-PSI-01.md", section: "Schedule", distance: 0.2, similarity: 0.8 }] }],
+  ["analyze_operations", { analysis: "visits", filters: { study_id: "NNR-PSI-01" } }, { analysis: "visits", scope: { study_id: "NNR-PSI-01" }, parameters_applied: {}, data_quality: {}, results: [{ completed: 10 }] }],
 ])("il follow-up conserva il contesto ed esegue ancora %s", async (name, args, report) => {
   const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => report });
   vi.stubGlobal("fetch", fetchMock);
   generateCompletion.mockResolvedValueOnce(toolCall(name, args)).mockResolvedValueOnce({ content: "Risposta aggiornata." });
   const res = await request(app).post("/api/chat").send({ message: "E per questo studio?", history: pair() });
-  expect(res.body).toEqual({ answer: "Risposta aggiornata.", tools_used: [name] });
+  expect(Object.keys(res.body).sort()).toEqual(["answer", "tools_used"]);
+  expect(res.body.answer.startsWith("Risposta aggiornata.")).toBe(true);
+  expect(res.body.tools_used).toEqual([name]);
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(args);
   const messages = generateCompletion.mock.calls[1][0];
   expect(messages.slice(1, 3)).toEqual(pair());
-  expect(JSON.parse(messages.at(-1).content)).toEqual(report);
+  expect(JSON.parse(messages.at(-1).content)).toEqual(name === "search_knowledge" ? {
+    results: [{ text: "Week 6 ±4 giorni", title: "NNR-PSI-01 - Protocol Synopsis", section: "Schedule",
+      schedule_evidence: { source: "knowledge_base/protocols/NNR-PSI-01.md", section: "Schedule" } }],
+  } : report);
 });
 
 it("il follow-up RAG e Data usa regole e risultati correnti, non i valori storici", async () => {
   const rule = { results: [{ text: "Attenzione <95%; escalation <90%", source: "knowledge_base/operations/clinical_operations_sop.md", section: "Data completeness", distance: 0.15, similarity: 0.85 }] };
   const args = { analysis: "completeness_threshold", group_by: ["site_id"], parameters: { attention_threshold_percent: 95, escalation_threshold_percent: 90 } };
-  const report = { analysis: args.analysis, scope: {}, parameters_applied: args.parameters, results: [{ site_id: "SITE_01", completeness_rate: 97, classification: "no_action" }], data_quality: { excluded_records: 0, warnings: [] } };
+  const report = { analysis: args.analysis,
+    scope: { study_id: null, site_id: null, participant_id: null, visit_name: null, group_by: ["site_id"] },
+    parameters_applied: args.parameters, results: [{ site_id: "SITE_01", required_assessments_total: 100,
+      missing_assessments_total: 3, completed_assessments_total: 97, completeness_rate: 97, classification: "no_action" }],
+    data_quality: { duplicates_removed: 0, inconsistent_actual_dates: 0, inconsistent_query_rows: 0,
+      excluded_records: 0, exclusions_by_reason: {}, warnings: [] } };
   const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => rule }).mockResolvedValueOnce({ ok: true, json: async () => report });
   vi.stubGlobal("fetch", fetchMock);
   generateCompletion.mockResolvedValueOnce(toolCall("search_knowledge", { query: "completeness Novera" }))
@@ -92,7 +102,9 @@ it("il follow-up RAG e Data usa regole e risultati correnti, non i valori storic
   expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(args);
   const messages = generateCompletion.mock.calls[2][0];
   expect(messages.slice(1, 3)).toEqual(history);
-  expect(messages.filter(m => m.role === "tool").map(m => JSON.parse(m.content))).toEqual([rule, report]);
+  expect(messages.filter(m => m.role === "tool").map(m => JSON.parse(m.content))).toEqual([
+    { results: [{ text: "Attenzione <95%; escalation <90%", title: "SOP sintetica - Clinical Operations", section: "Data completeness" }] }, report,
+  ]);
   expect(Object.keys(res.body).sort()).toEqual(["answer", "tools_used"]);
 });
 
@@ -101,7 +113,8 @@ it("la memoria non cambia il limite di quattro round", async () => {
   vi.stubGlobal("fetch", fetchMock);
   generateCompletion.mockResolvedValue(toolCall("search_knowledge", { query: "Ruoli" }));
   const res = await request(app).post("/api/chat").send({ message: "Follow-up", history: pair() });
-  expect(res.status).toBe(502);
+  expect(res.status).toBe(200);
+  expect(res.body.answer).toMatch(/risultati verificabili/i);
   expect(fetchMock).toHaveBeenCalledTimes(4);
-  expect(generateCompletion).toHaveBeenCalledTimes(5);
+  expect(generateCompletion).toHaveBeenCalledTimes(4);
 });

@@ -51,7 +51,7 @@ export async function presentScheduleClaims(content, knowledge, message, history
   let packet;
   try { packet = JSON.parse(content); } catch { /* La prosa generale rimane compatibile. */ }
   const declared = packet && Object.hasOwn(packet, "schedule_facts");
-  const attempted = /"(?:schedule_facts|target_day|window_days)"\s*:/.test(content);
+  const attempted = /"(?:schedule_facts|target_day|window_days)\\*"\s*:/.test(content);
   if (!declared && !attempted && !calendarAssertion(packet ? JSON.stringify(packet) : content)) return null;
   const selected = selectedUserStudies(message, history);
   if (!selected.length) { diagnose("scope_missing"); return CLARIFY; }

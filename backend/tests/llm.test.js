@@ -8,10 +8,14 @@ vi.mock("groq-sdk", async importOriginal => ({
   })
 }));
 vi.mock("../src/config.js", () => ({ GROQ_API_KEY: "test-placeholder", GROQ_MODEL: "openai/gpt-oss-120b", GROQ_FALLBACK_MODEL: "openai/gpt-oss-20b" }));
-import { generateCompletion } from "../src/llm.js";
+let generateCompletion;
 
-beforeEach(() => vi.clearAllMocks());
-afterEach(() => vi.useRealTimers());
+beforeEach(async () => {
+  vi.clearAllMocks();
+  vi.resetModules();
+  ({ generateCompletion } = await import("../src/llm.js"));
+});
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 it("invia i due tool nativi con scelta automatica senza ragionamento esposto", async () => {
   sdk.create.mockResolvedValue({ choices: [{ message: { role: "assistant", content: "Risposta." } }] });
@@ -87,11 +91,53 @@ it.each([
   expect(sdk.create).toHaveBeenCalledTimes(2);
 });
 
-it("non trasferisce il pacing a una nuova richiesta", async () => {
+it("conserva il reset TPM osservato fra richieste distinte sullo stesso modello", async () => {
   vi.useFakeTimers();
   sdk.create.mockImplementationOnce(() => withHeaders({ "x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "2s" }))
     .mockResolvedValue(message);
   await generateCompletion([], { modelState: {} });
+  const pending = generateCompletion([], { modelState: {} });
+  expect(sdk.create).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(2100);
+  await pending;
+  expect(sdk.create).toHaveBeenCalledTimes(2);
+});
+
+it("registra soltanto metadati chiusi della finale senza testo o reasoning", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  sdk.create.mockResolvedValue({ choices: [{ finish_reason: "length", message: {
+    role: "assistant", content: "canary_riservata", reasoning: "reasoning_riservato",
+  } }], usage: { prompt_tokens: 3200, completion_tokens: 600, total_tokens: 3800 } });
+  expect((await generateCompletion([], { round: 2 })).content).toBe("canary_riservata");
+  const logs = warn.mock.calls.flat().join(" ");
+  expect(logs).toContain("finish_reason=length");
+  expect(logs).toContain("prompt_tokens=3200");
+  expect(logs).not.toMatch(/canary|reasoning_riservato/);
+  warn.mockRestore();
+});
+
+it("la quota del primary non viene applicata al modello fallback", async () => {
+  vi.useFakeTimers();
+  sdk.create.mockImplementationOnce(() => withHeaders({ "x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "2s" }))
+    .mockResolvedValue(message);
+  await generateCompletion([], { modelState: {} });
+  await generateCompletion([], { modelState: { fallback: true } });
+  expect(vi.getTimerCount()).toBe(0);
+  expect(sdk.create.mock.calls[1][0].model).toBe("openai/gpt-oss-20b");
+});
+
+it("il reset già trascorso non ritarda il successivo turno", async () => {
+  vi.useFakeTimers();
+  sdk.create.mockImplementationOnce(() => withHeaders({ "x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "2s" }))
+    .mockResolvedValue(message);
+  await generateCompletion([], { modelState: {} });
+  await vi.advanceTimersByTimeAsync(2200);
   await generateCompletion([], { modelState: {} });
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("un logger indisponibile non altera la completion", async () => {
+  vi.spyOn(console, "warn").mockImplementation(() => { throw Error("Logger indisponibile"); });
+  sdk.create.mockResolvedValue(message);
+  expect(await generateCompletion([])).toEqual(message.choices[0].message);
 });

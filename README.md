@@ -1,21 +1,112 @@
 # TrialPulse
 
-TrialPulse è un prototipo locale per il Clinical Operations Manager / Study Operations Lead. Consulta documentazione e dati operativi per confrontare studi e siti, individuare criticità e supportare decisioni sulla conduzione degli studi.
+**Agente AI multi-tool per le Clinical Research Operations**
+Progetto finale del Master in AI e Agenti AI per il Business
 
-Novera Neuro Research, gli studi, i siti, i partecipanti e i dati sono completamente sintetici. Il portfolio comprende NNR-PSI-01, NNR-ESK-02, NNR-DXB-03 e NNR-SER-04. I risultati non rappresentano evidenze cliniche reali.
+Ho sviluppato **TrialPulse** come prototipo di agente AI per supportare il lavoro di un **Clinical Operations Manager / Study Operations Lead**. L'agente consulta documentazione interna e dati operativi di trial clinici, confronta studi e siti e aiuta a individuare criticità attraverso indicatori misurabili.
 
-## Architettura e prerequisiti
+Ho ambientato il progetto in **Novera Neuro Research**, un'azienda biotech fittizia specializzata nella ricerca sui disturbi depressivi. Azienda, studi, siti, partecipanti e dati sono interamente sintetici.
 
-- Frontend React/Vite: interfaccia conversazionale, normalmente sulla porta 5173.
-- Backend Node/Express: `POST /api/chat`, porta 3001, SDK Groq nativo e due strumenti scelti autonomamente dal modello.
-- Data Agent Python/FastAPI+pandas: analisi del CSV, porta 8000.
-- RAG Python/FastAPI: retrieval dalla Knowledge Base Novera con ChromaDB locale, porta 8001.
+Demo Firebase:
+Repository GitHub:
 
-Ambiente verificato: Windows/PowerShell, Node.js 24.19.0 (versione principale indicata in [.nvmrc](.nvmrc)), npm 11.17.0 e Python 3.14.2. Le dipendenze sono descritte nei manifest e requirements del repository. Occorrono una chiave Groq personale e accesso Internet per il provider; il primo caricamento del modello di embedding può richiedere un download. I font dell'interfaccia sono caricati da Google Fonts, con fallback locale.
+## Cosa ho realizzato
 
-## Installazione e configurazione
+Ho progettato un agente che sceglie autonomamente gli strumenti necessari alla domanda, anziché seguire un semplice instradamento basato su parole chiave. Ho implementato tre modalità di lavoro:
 
-Eseguire i comandi dalla radice di TrialPulse. Su una nuova copia sorgente:
+- **RAG-only:** recupero protocolli, calendari delle visite, procedure e regole operative dalla Knowledge Base interna Novera.
+- **Data-only:** analisi dei dati sintetici tramite Python e pandas, con KPI di recruitment, screening, retention, visite, completezza, deviazioni, query e trend.
+- **RAG → Data:** recupero una regola documentale e la applico ai dati, per esempio per verificare finestre di visita o condizioni di escalation.
+
+Ho previsto domande di chiarimento quando manca lo studio di riferimento, verifiche sulla provenienza delle informazioni e risposte prudenti quando i documenti o i dati non sostengono una conclusione. Ho mantenuto separati i risultati del CSV, le regole interne Novera e gli eventuali suggerimenti operativi.
+
+Ho disegnato un’interfaccia responsive con identità grafica dedicata, supporto a Markdown e tabelle, gestione degli errori, invio con Enter e nuova riga con Shift+Enter.
+
+## Studi e scenario operativo
+
+Ho costruito un portfolio di quattro studi sui disturbi depressivi, con popolazione sintetica di età compresa tra 18 e 65 anni e sintomatologia almeno moderata.
+
+| Studio | Trattamento | Popolazione |
+| --- | --- | --- |
+| `NNR-PSI-01` | Psilocibina | MDD e TRD |
+| `NNR-ESK-02` | Esketamina | MDD e TRD |
+| `NNR-DXB-03` | Destrometorfano + bupropione | MDD |
+| `NNR-SER-04` | Sertralina | MDD |
+
+Ho distribuito le attività su **otto siti fittizi**: Roma (`SITE_01`), Milano (`SITE_02`), Barcellona (`SITE_03`), Parigi (`SITE_04`), Amsterdam (`SITE_05`), Berlino (`SITE_06`), Londra (`SITE_07`) e Zurigo (`SITE_08`). Ho inserito criticità riconoscibili, come recruitment lento a Barcellona, query aging elevato ad Amsterdam e visite mancate a Londra, insieme a siti con prestazioni migliori.
+
+## Architettura e Knowledge Base
+
+Ho separato l'applicazione in quattro componenti, mantenendo l'orchestrazione nel backend:
+
+| Componente | Tecnologie | Responsabilità |
+| --- | --- | --- |
+| Frontend | React, Vite | Interfaccia conversazionale e cronologia recente |
+| Backend | Node.js, Express, SDK Groq | Endpoint `POST /api/chat`, scelta e sequenza dei tool |
+| Data Agent | Python, FastAPI, pandas | Analisi del CSV e calcolo dei KPI |
+| RAG | Python, FastAPI, ChromaDB | Ricerca semantica nei documenti Novera |
+
+Ho utilizzato **`intfloat/multilingual-e5-small`** per gli embedding della Knowledge Base e i modelli **`openai/gpt-oss-120b`** e **`openai/gpt-oss-20b`** per la componente generativa, con fallback limitato nei casi previsti.
+
+Ho preparato una Knowledge Base operativa fittizia con protocol synopsis, schedule e visit windows, SOP, linee guida di monitoring, responsabilità, FAQ e criteri di escalation. Tra le regole documentate ho incluso la site review per recruitment inferiore al 75% del target per due mesi consecutivi, l'escalation delle query oltre 10 giorni e i controlli sulle deviazioni maggiori in finestre temporali di 30 giorni.
+
+Ho volutamente **evitato di inserire nel CSV finestre di visita e indicatori out-of-window già calcolati**: l'agente deve prima recuperare le regole corrette dalla documentazione e poi applicarle ai dati.
+
+## Dataset sintetico e qualità dei dati
+
+Ho generato il dataset operativo `data/trialpulse_operations.csv` in modo deterministico, partendo da configurazioni versionate e da un seed congelato. Il dataset contiene:
+
+- **1.500 record logici** partecipante-visita, **1.508 righe fisiche** e **43 colonne**.
+- **194 partecipanti screenati**, di cui **154 arruolati** e **40 screening failure**.
+- **8 duplicati intenzionali**, oltre ad anomalie controllate in date, campi non critici, formattazioni, monitoring e query.
+
+Ho introdotto queste imperfezioni per verificare che le analisi non assumessero dati perfetti. Ho distinto gli zeri effettivamente presenti dai periodi non restituiti e ho previsto segnalazioni esplicite dei problemi di qualità.
+
+### Come ho scelto i range dei dati
+
+Ho creato **dati completamente sintetici**, senza copiare i record di alcun trial clinico reale. Per mantenerli credibili, ho confrontato i range di alcune variabili con una piccola selezione di pubblicazioni scientifiche pertinenti ai quattro trattamenti.
+
+Ho classificato le variabili in tre livelli, in base alla loro importanza per TrialPulse:
+
+- **HIGH:** per le variabili più importanti ho mantenuto range più vicini ai valori plausibili osservati nelle fonti.
+- **MEDIUM:** ho adottato intervalli più flessibili, preservando la coerenza complessiva.
+- **LOW:** ho lasciato maggiore variabilità, senza introdurre valori volutamente irrealistici.
+
+Ho utilizzato quindi le pubblicazioni come **controllo di plausibilità**, non come dataset da riprodurre né come base per affermare risultati clinici. Non ho svolto una revisione sistematica della letteratura. Ho mantenuto queste fonti esterne alla Knowledge Base RAG, dedicata esclusivamente alle regole operative fittizie di Novera.
+
+**Riferimenti scientifici principali:**
+
+- **Psilocibina:** Goodwin et al., *New England Journal of Medicine* (2022), [Single-Dose Psilocybin for a Treatment-Resistant Episode of Major Depression](https://doi.org/10.1056/NEJMoa2206443).
+- **Esketamina:** Reif et al., *New England Journal of Medicine* (2023), [ESCAPE-TRD](https://pubmed.ncbi.nlm.nih.gov/37792613/).
+- **Destrometorfano + bupropione:** studio [GEMINI](https://pubmed.ncbi.nlm.nih.gov/35649167/).
+- **Sertralina:** studio [PANDA](https://pubmed.ncbi.nlm.nih.gov/31543474/).
+
+Ho raccolto ulteriori dettagli e la classificazione delle variabili in `docs/references/plausibility_sources.md`.
+
+## Riproducibilità e verifiche
+
+Ho conservato il generatore, le configurazioni e i controlli di integrità nel repository, senza rigenerare il dataset dopo il congelamento.
+
+- **Seed:** `2939583971211916763`
+- **CSV SHA-256:** `3f9ad9042443eeecf70071132b87032f2564a6dba4b3d81f01efb18bd8aff7ec`
+- **Configurazione:** `data_agent/config/reproducibility.yaml`
+
+Ho verificato i calcoli e i contratti applicativi mediante suite automatiche: **543 test backend**, **34 test frontend** e **61 test Python**, oltre alla validazione dei **11 documenti** della Knowledge Base. Ho inoltre eseguito prove reali su RAG, Data Agent, applicazione delle regole, gestione delle ambiguità e limiti clinici. I test automatici con provider simulato non equivalgono a una garanzia di affidabilità generativa in ogni esecuzione.
+
+Ho predisposto questi comandi di verifica dalla root, dopo l’installazione:
+
+```powershell
+npm --prefix backend test
+npm --prefix frontend test
+npm --prefix frontend run build
+& .\data_agent\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
+& .\data_agent\.venv\Scripts\python.exe .\scripts\validate_kb.py
+Get-FileHash .\data\trialpulse_operations.csv -Algorithm SHA256
+```
+
+## Installazione e avvio locale
+
+Ho sviluppato e verificato il prototipo su **Windows/PowerShell**, con **Node.js 24.19.0**, **npm 11.17.0** e **Python 3.14.2**. Per riprodurre l'ambiente su una nuova copia, ho previsto i seguenti comandi dalla root del progetto:
 
 ```powershell
 npm --prefix backend ci
@@ -24,151 +115,38 @@ python -m venv data_agent/.venv
 & .\data_agent\.venv\Scripts\python.exe -m pip install -r .\data_agent\requirements.txt -r .\rag\requirements.txt
 ```
 
-Non ricreare un ambiente virtuale già configurato. I comandi di installazione servono alla preparazione di una nuova copia, non ai normali avvii successivi.
+Ho separato le credenziali dal codice: la chiave `GROQ_API_KEY` appartiene esclusivamente a `backend/.env`, creato a partire da `backend/.env.example`. Il frontend usa `frontend/.env.local`, ricavato da `frontend/.env.example`, soltanto per configurare il proxy `BACKEND_PROXY_TARGET`. Non ho inserito segreti nel frontend o nel repository.
 
-Copiare i template soltanto se i file di destinazione non esistono:
-
-```powershell
-if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
-if (!(Test-Path frontend/.env.local)) { Copy-Item frontend/.env.example frontend/.env.local }
-```
-
-In `backend/.env` impostare personalmente `GROQ_API_KEY`. Il [template backend](backend/.env.example) documenta anche `GROQ_MODEL`, `GROQ_FALLBACK_MODEL`, `PORT`, `DATA_AGENT_URL` e `RAG_API_URL`, con i valori locali configurati dal progetto. Il [template frontend](frontend/.env.example) contiene soltanto `BACKEND_PROXY_TARGET`. Non inserire chiavi o token nel frontend; non distribuire file `.env` reali. Non è necessario un template nella radice.
-
-## Indice documentale
-
-Il [manifest](knowledge_base/manifest.yaml) seleziona i documenti Novera da ingerire. Il modello è `intfloat/multilingual-e5-small`; la configurazione si trova in [rag/config.py](rag/config.py).
-
-Prima del primo avvio del RAG, se l'indice non è già disponibile:
+Ho previsto la costruzione dell'indice Chroma **solo se assente**, prima dell'avvio del RAG:
 
 ```powershell
 & .\data_agent\.venv\Scripts\python.exe .\rag\build_index.py
 ```
 
-Questo comando crea l'indice operativo in `rag/chroma_db/` e **sostituisce la collezione `trialpulse_kb` se esiste**. Non eseguirlo ad ogni avvio né durante l'utilizzo del servizio. L'indice è un artefatto locale, escluso da Git; non contiene le fonti scientifiche di plausibilità.
+**Attenzione:** questo comando sostituisce la collezione `trialpulse_kb` eventualmente esistente. Non l'ho previsto come operazione da ripetere a ogni avvio.
 
-I test RAG di retrieval costruiscono invece indici in directory temporanee e li rimuovono al termine. Non ricostruiscono l'indice operativo. Il modello di embedding deve essere già nella cache per eseguire tali test completamente offline.
-
-## Avvio dei quattro servizi
-
-Aprire quattro terminali nella radice del repository, dopo avere preparato ambiente, template e indice:
+Ho utilizzato quattro terminali separati per i servizi locali:
 
 ```powershell
-# Terminale 1: Data Agent
+# 1. Data Agent: porta 8000
 & .\data_agent\.venv\Scripts\python.exe -m uvicorn app:app --app-dir data_agent --host 127.0.0.1 --port 8000
-```
 
-```powershell
-# Terminale 2: RAG
+# 2. RAG: porta 8001
 & .\data_agent\.venv\Scripts\python.exe -m uvicorn app:app --app-dir rag --host 127.0.0.1 --port 8001
-```
 
-```powershell
-# Terminale 3: backend, senza riavvio automatico
+# 3. Backend: porta 3001
 npm --prefix backend run start
-```
 
-```powershell
-# Terminale 4: frontend
+# 4. Frontend: porta 5173
 npm --prefix frontend run dev
 ```
 
-Controllare `/health` su `http://127.0.0.1:8000`, `http://127.0.0.1:8001` e `http://127.0.0.1:3001`. Aprire l'indirizzo mostrato da Vite, normalmente `http://localhost:5173/`. Non avviare duplicati se i servizi sono già attivi. Vite inoltra `/api` al backend; per distribuire il build statico serve un reverse proxy equivalente, non fornito da questo prototipo.
+Ho utilizzato `http://localhost:5173` come indirizzo locale dell'interfaccia. Il frontend inoltra `/api` al backend tramite il proxy Vite; il backend comunica con i servizi Python via HTTP locale. Ho predisposto anche un recupero Python tramite `child_process`, facoltativo e disabilitato per impostazione iniziale, utilizzabile solo nelle condizioni documentate in `backend/.env.example`.
 
-## Recupero locale Python facoltativo
+## Limiti e utilizzo responsabile
 
-Normalmente Node comunica con Data Agent e RAG tramite HTTP. È disponibile un recupero locale facoltativo mediante `child_process`, disabilitato in partenza. Per abilitarlo, indicare in `backend/.env`:
+Ho progettato TrialPulse per il **supporto alle operazioni di ricerca**, non per diagnosi, valutazioni di idoneità, raccomandazioni terapeutiche o confronti di superiorità clinica tra trattamenti. I dati sintetici possono illustrare indicatori operativi, ma non dimostrano quale terapia sia più efficace.
 
-```dotenv
-PYTHON_BRIDGE_ENABLED=true
-PYTHON_EXECUTABLE=C:/percorso/assoluto/TrialPulse/data_agent/.venv/Scripts/python.exe
-```
+Ho mantenuto controlli sulle fonti e sugli output, pur riconoscendo alcuni limiti: il provider Groq può restituire occasionalmente errori `400 tool_use_failed`, risposte strutturate incomplete o `429` per limiti di quota. Ho implementato pacing, retry e fallback circoscritti, senza considerarli garanzie di successo. Ho sviluppato il sistema come **prototipo locale**, privo di autenticazione e non ancora configurato per un utilizzo pubblico in produzione.
 
-Sostituire il percorso con quello reale, senza inserire credenziali. Utilizzare l'ambiente Python già configurato con le dipendenze Data e RAG. L'interprete deve essere un file esistente indicato con percorso assoluto. Gli argomenti e le domande non vengono eseguiti in una shell.
-
-Il recupero si attiva soltanto per connessioni HTTP rifiutate (`ECONNREFUSED`) a servizi loopback (`127.0.0.1`, `localhost`, `::1`). Non si attiva per timeout, risposte HTTP 400/422/503, JSON non valido, documentazione non attestata o errori del provider Groq. Il normale trasporto HTTP resta prioritario; non vengono avviati server FastAPI.
-
-Per le analisi viene eseguito un processo Python a richiesta. Per RAG viene utilizzato un worker Python seriale, avviato alla prima necessità e chiuso dopo un periodo di inattività. Il worker riutilizza il modello di embedding già caricato nello stesso processo. Entrambi restituiscono gli stessi corpi JSON dei servizi HTTP e sono soggetti alle medesime validazioni Node. Un indice Chroma locale e un modello di embedding già disponibili rimangono necessari: il recupero non ricostruisce l'indice e non scarica il modello.
-
-Il recupero non corregge errori del modello generativo e non è necessario all'avvio ordinario. Può aumentare memoria e latenza quando il servizio locale è fermo; non sostituisce il controllo di disponibilità dei servizi Python.
-
-## Utilizzo, capacità e limiti
-
-- **RAG-only:** regole, protocolli, schedule e finestre. Specificare lo studio quando la regola varia fra protocolli; gli alias ufficiali riconosciuti sono contestualizzati con gli ID canonici. I valori di calendario vengono verificati contro le sezioni effettivamente recuperate.
-- **Data-only:** recruitment, enrollment, screening failure, retention/dropout, visite, completeness, query, deviations, trend e confronti. I calcoli provengono dal Data Agent, non dal modello.
-- **RAG → Data:** recupero e applicazione di regole documentali, incluse visit windows, soglie di completeness, query aging, recruitment sotto target e major deviations temporali. Distinguere sempre regole Novera, dati calcolati e suggerimenti non vincolanti.
-
-Esempi e limiti verificabili sono raccolti in [tests/kb_query_set.md](tests/kb_query_set.md) e nella [matrice di valutazione](tests/agent_evaluation_matrix.md). Questi scenari non sono una garanzia di successo autonomo per ogni nuova richiesta.
-
-`major_deviations_window` rileva almeno tre eventi per sito in una finestra mobile di 30 giorni sulla storia disponibile. Non calcola gli ultimi 30 giorni rispetto a una data di riferimento: questo perimetro recente non è implementato. Non usare il conteggio storico totale come sostituto del controllo temporale. Nel recruitment, un mese non restituito non equivale a zero: uno zero può essere riportato solo se effettivamente presente nei risultati.
-
-I duplicati rimossi dalla vista analitica, le anomalie segnalate e i record esclusi da una specifica analisi sono categorie distinte. Una risposta aggregata non dimostra la conformità di gruppi assenti o dei singoli siti.
-
-Le fonti consultate non attestano automaticamente ogni affermazione generativa. Evidenze insufficienti devono produrre un limite o una richiesta di chiarimento, non valori inventati. I presenter controllati verificano i report pertinenti; le citazioni nella prosa libera mantengono limiti di affidabilità.
-
-La conversazione visualizzata sopravvive al refresh tramite `sessionStorage`, senza archivio di sessione nel backend. Ogni richiesta trasmette al massimo quattro scambi completi consecutivi recenti e 6.000 caratteri; gli scambi troppo lunghi non vengono abbreviati. Una nuova conversazione cancella la memoria locale dopo conferma. Dettagli dell'interfaccia in [frontend/README.md](frontend/README.md).
-
-Non usare TrialPulse per diagnosi, scelta terapeutica, idoneità clinica o classifiche di efficacia fra trattamenti. Le richieste miste possono ricevere la sola analisi operativa consentita, con rifiuto della raccomandazione clinica. I dati sintetici non permettono conclusioni di superiorità terapeutica.
-
-## Errori provider
-
-Il modello principale è `openai/gpt-oss-120b`, con fallback `openai/gpt-oss-20b` soltanto su HTTP 429 del provider. Il fallback resta attivo nella richiesta corrente; la richiesta successiva riparte dal principale. L'SDK usa `maxRetries: 0`.
-
-Il backend dispone di pacing basato sui segnali di quota, un unico retry applicativo per specifici `400 tool_use_failed` intermedi dopo una ricerca documentale riuscita e un recupero controllato dei report recruitment validati in caso di tale errore nella finale forzata. Non sono retry generali né garanzie di completamento. Restano quattro round tool massimi e una completion finale; i risultati già ottenuti non devono essere ricalcolati per effetto del retry.
-
-Gli HTTP 400 generativi e i 429 di rate limiting sono problemi distinti. Errori intermittenti possono impedire la risposta anche con strumenti locali funzionanti; la causa dei `tool_use_failed` non è risolta in generale. Il pacing non coordina globalmente le quote di richieste indipendenti. Le risposte controllate non espongono credenziali o generazioni rifiutate grezze. Il prototipo è destinato all'uso locale e non implementa autenticazione.
-
-Un errore terminale del provider produce un errore API controllato. Se invece il fallback completa la generazione ma omette i fatti strutturati necessari, il calendario viene rifiutato anche quando la fonte pertinente è stata consultata: il recupero del documento da solo non autorizza la pubblicazione dei valori. I follow-up documentali hanno ottenuto risposte corrette in collaudi locali, ma restano possibili risposte generative incomplete; non è garantito il completamento di ogni conversazione.
-
-## Test e build
-
-Dalla radice:
-
-```powershell
-npm --prefix backend test
-npm --prefix frontend test
-npm --prefix frontend run build
-& .\data_agent\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-& .\data_agent\.venv\Scripts\python.exe .\scripts\validate_kb.py
-```
-
-Le suite usano simulazioni del provider, non chiamate Groq reali. Per impedire download del modello durante i test Python, dopo averne preparato la cache:
-
-```powershell
-$env:HF_HUB_OFFLINE = "1"
-$env:TRANSFORMERS_OFFLINE = "1"
-& .\data_agent\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-```
-
-I test automatici non sostituiscono il controllo nel browser di responsive, font, refresh e dialoghi nativi, né il collaudo del comportamento autonomo del provider.
-
-## Dataset e riproducibilità
-
-Il [CSV ufficiale](data/trialpulse_operations.csv) contiene 1.508 righe fisiche, 1.500 righe logiche, 43 colonne e 8 duplicati intenzionali; 194 partecipanti screenati, 154 arruolati e 40 screening failure. Include dirty data controllati. Il disegno e i target sono in [study_design.yaml](data_agent/config/study_design.yaml).
-
-Seed: `2939583971211916763`, registrato in [reproducibility.yaml](data_agent/config/reproducibility.yaml). SHA-256 atteso:
-
-```text
-3f9ad9042443eeecf70071132b87032f2564a6dba4b3d81f01efb18bd8aff7ec
-```
-
-Verifica non distruttiva:
-
-```powershell
-Get-FileHash .\data\trialpulse_operations.csv -Algorithm SHA256
-```
-
-Le suite loader/Data Agent verificano anche struttura, duplicati e ground truth. Non eseguire `data_agent/validate_dataset.py` come controllo in sola lettura: richiama il generatore. Non rigenerare il CSV per avviare l'applicazione.
-
-## Plausibilità dei dati sintetici
-
-Le fonti scientifiche sono state usate per controllare la plausibilità dei range, con maggiore aderenza per variabili centrali e più libertà per dettagli operativi. Non sono stati riprodotti record di trial reali; non si tratta di una revisione sistematica formale. La letteratura non costituisce il dataset né la Knowledge Base operativa.
-
-Riferimenti principali, identificati in [plausibility_sources.md](docs/references/plausibility_sources.md) e con indirizzi già riportati nelle [note di plausibilità](docs/references/kb_plausibility_notes.md):
-
-- Psilocibina: Goodwin et al., NEJM 2022, [Single-Dose Psilocybin for a Treatment-Resistant Episode of Major Depression](https://doi.org/10.1056/NEJMoa2206443).
-- Esketamina: Reif et al., NEJM 2023, [ESCAPE-TRD](https://pubmed.ncbi.nlm.nih.gov/37792613/).
-- Dextrometorfano + bupropione: [GEMINI](https://pubmed.ncbi.nlm.nih.gov/35649167/).
-- Sertralina: [PANDA](https://pubmed.ncbi.nlm.nih.gov/31543474/).
-
-Distribuire solo sorgenti, test, template e documenti necessari: escludere credenziali, ambienti installati, cache e archivi locali non verificati. I lockfile npm e i requirements Python sono parte della riproducibilità.
+Ho conservato la conversazione recente nella sessione del browser, con ripristino dopo il refresh e possibilità di azzerarla tramite conferma. Non ho realizzato un archivio centrale delle conversazioni. Per un'eventuale demo pubblica, la distribuzione del solo frontend statico non sostituisce l'hosting e la protezione del backend, del Data Agent e del RAG.

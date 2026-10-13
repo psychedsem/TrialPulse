@@ -53,10 +53,71 @@ beforeEach(async () => {
   ({ app } = await import("../src/app.js"));
   ({ orchestrate } = await import("../src/orchestrator.js"));
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const send = () => request(app).post("/api/chat").send({ message: "Mi riferisco allo studio NNR-ESK-02.", history });
 const models = () => wire.map(payload => payload.model);
 const log = () => warn.mock.calls.flat().join(" ");
+
+it.each([
+  [JSON.stringify({ schedule_facts: [] }), "json_schedule_packet"],
+  [JSON.stringify({ tool_calls: [] }), "json_tool_calls"],
+  [JSON.stringify({ name: "search_knowledge", arguments: { query: "canary_privata" } }), "json_known_function"],
+  [JSON.stringify({ name: "funzione_privata", arguments: "canary_privata" }), "json_unknown_function"],
+  [JSON.stringify({ answer: "canary_privata" }), "json_other_object"],
+  [JSON.stringify("canary_privata"), "json_other_value"],
+  ["canary_privata", "non_json"],
+])("classifica soltanto la struttura della generazione rifiutata: %s", async (generation, category) => {
+  steps = [tool(), failure(400, { failed_generation: generation }), final];
+  expect((await send()).status).toBe(200);
+  expect(log()).toContain(`generation_category=${category}`);
+  expect(log()).not.toMatch(/canary_privata|funzione_privata/);
+  expect(wire).toHaveLength(3);
+  expect(wire[2]).toEqual(wire[1]);
+  expect(rag).toHaveLength(1);
+});
+
+it("non interpreta generazioni rifiutate oltre il limite diagnostico", async () => {
+  steps = [tool(), failure(400, { failed_generation: JSON.stringify({ answer: "canary_privata".repeat(6000) }) }), final];
+  const response = await send();
+  expect(response.status).toBe(200);
+  expect(log()).toContain("generation_category=non_disponibile");
+  expect(log() + response.text).not.toContain("canary_privata");
+  expect(wire[2]).toEqual(wire[1]);
+});
+
+it("il retry 400 rispetta la quota aggiornata dall'errore senza ripetere il tool", async () => {
+  vi.useFakeTimers();
+  steps = [{ ...tool(), body: { ...tool().body, usage: { prompt_tokens: 1000 } },
+    headers: { "x-ratelimit-remaining-tokens": "5000", "x-ratelimit-reset-tokens": "1s" } },
+    { ...failure(), headers: { "x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "2s" } }, final];
+  const pending = orchestrate("Week 6 NNR-ESK-02");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(wire).toHaveLength(2);
+  await vi.advanceTimersByTimeAsync(2100);
+  expect((await pending).answer).toContain("giorno target: 42; finestra: ±2 giorni");
+  expect(wire).toHaveLength(3);
+  expect(wire[2]).toEqual(wire[1]);
+  expect(rag).toHaveLength(1);
+  expect(models()).toEqual(Array(3).fill("openai/gpt-oss-120b"));
+});
+
+it("il vero SDK rispetta la quota osservata fra due orchestrazioni senza condividere history o fallback", async () => {
+  vi.useFakeTimers();
+  steps = [tool(), { ...final, body: { ...final.body, usage: { prompt_tokens: 1000 } },
+    headers: { "x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "2s" } },
+    tool(), final];
+  await orchestrate("Week 6 NNR-ESK-02");
+  const pending = orchestrate("Week 6 NNR-ESK-02");
+  expect(wire).toHaveLength(2);
+  await vi.advanceTimersByTimeAsync(2100);
+  const result = await pending;
+  expect(result.answer).toContain("giorno target: 42; finestra: ±2 giorni");
+  expect(wire).toHaveLength(4);
+  expect(wire[2].messages.map(item => item.role)).toEqual(["system", "user"]);
+  expect(models()).toEqual(Array(4).fill("openai/gpt-oss-120b"));
+  expect(rag).toHaveLength(2);
+  vi.useRealTimers();
+});
 
 it.each([["PSI", "NNR-PSI-01"], ["ESK", "NNR-ESK-02"], ["DXB", "NNR-DXB-03"], ["SER", "NNR-SER-04"]])(
   "trasmette al vero SDK lo studio canonico per l'alias %s senza imporre tool", async (alias, id) => {
@@ -299,7 +360,7 @@ it.each([
   expect(result.status).toBe(502);
   expect(log()).toContain(`failed_generation_present=${present}`);
   expect(log()).toContain(`failed_generation_type=${type}`);
-  expect(log()).toContain("generation_category=non_disponibile");
+  expect(log()).toContain(`generation_category=${type === "string" ? "non_json" : "non_disponibile"}`);
   expect(log()).toContain("completion=intermedia");
   expect(log() + result.text).not.toMatch(/generazione privata|testo privato|argomenti privati|categoria privata|offline-placeholder|Authorization/);
 });

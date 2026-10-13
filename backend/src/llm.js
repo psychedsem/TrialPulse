@@ -7,9 +7,11 @@ const groq = new Groq({
   timeout: 60_000,
   maxRetries: 0,
 });
+// La quota del modello non riparte da zero al successivo turno conversazionale.
+const observedCapacity = new Map();
 
 async function complete(payload, modelState) {
-  const capacity = modelState.capacity?.[payload.model];
+  const capacity = observedCapacity.get(payload.model) ?? modelState.capacity?.[payload.model];
   const wait = capacity?.resetAt - Date.now();
   if (capacity?.remaining < capacity?.previousCost && wait > 0 && wait <= 60_000) {
     await new Promise(resolve => setTimeout(resolve, wait));
@@ -27,8 +29,28 @@ async function complete(payload, modelState) {
     modelState.capacity ??= {};
     modelState.capacity[payload.model] = { remaining, resetAt: Date.now() + duration + 100,
       previousCost: promptTokens + payload.max_completion_tokens };
-  } else if (modelState.capacity) delete modelState.capacity[payload.model];
+    observedCapacity.set(payload.model, modelState.capacity[payload.model]);
+  } else {
+    observedCapacity.delete(payload.model);
+    if (modelState.capacity) delete modelState.capacity[payload.model];
+  }
   return data;
+}
+
+function logCompletion(completion, modelState, { allowTools, round }) {
+  try {
+    const choice = completion.choices?.[0];
+    const content = choice?.message?.content;
+    let packet;
+    try { packet = JSON.parse(content); } catch { /* Nessun contenuto nei log. */ }
+    const category = !content ? "content_absent" : packet && Object.hasOwn(packet, "schedule_facts") ?
+      "schedule_packet" : packet ? "other_json" : "prose_or_invalid_json";
+    const finish = ["stop", "length", "tool_calls", "content_filter"].includes(choice?.finish_reason) ?
+      choice.finish_reason : "non_disponibile";
+    const usage = ["prompt_tokens", "completion_tokens", "total_tokens"].map(key =>
+      `${key}=${Number.isSafeInteger(completion.usage?.[key]) && completion.usage[key] >= 0 ? completion.usage[key] : "non_disponibile"}`);
+    console.warn(`[TrialPulse] provider_completion; model=${modelState.fallback ? "fallback" : "primary"}; round=${round}; completion=${allowTools ? "intermedia" : "finale"}; finish_reason=${finish}; output_category=${category}; ${usage.join("; ")}`);
+  } catch { /* Il logging non deve interferire con la risposta. */ }
 }
 
 function toolFailureFields(error) {
@@ -69,6 +91,32 @@ function logRateLimit(error, payload, modelState, { allowTools, round }) {
   } catch { /* Nessun errore diagnostico deve modificare la gestione del provider. */ }
 }
 
+function observeErrorCapacity(error, payload, modelState) {
+  if (!(error instanceof APIError)) return;
+  const previous = observedCapacity.get(payload.model) ?? modelState.capacity?.[payload.model];
+  const remaining = quotaValue(error.headers?.get?.("x-ratelimit-remaining-tokens"));
+  const duration = quotaValue(error.headers?.get?.("x-ratelimit-reset-tokens"), true) * 1000;
+  if (!previous || !Number.isSafeInteger(remaining) || !Number.isFinite(duration) || duration <= 0 || duration > 59_900) return;
+  const capacity = { ...previous, remaining, resetAt: Date.now() + duration + 100 };
+  modelState.capacity ??= {};
+  modelState.capacity[payload.model] = capacity;
+  observedCapacity.set(payload.model, capacity);
+}
+
+function generationCategory(raw) {
+  if (typeof raw !== "string" || raw.length > 65_536) return "non_disponibile";
+  try {
+    const packet = JSON.parse(raw);
+    if (!packet || typeof packet !== "object" || Array.isArray(packet)) return "json_other_value";
+    if (Object.hasOwn(packet, "schedule_facts")) return "json_schedule_packet";
+    if (Array.isArray(packet.tool_calls)) return "json_tool_calls";
+    if (typeof packet.name === "string" && Object.hasOwn(packet, "arguments")) {
+      return TOOLS.some(tool => tool.function.name === packet.name) ? "json_known_function" : "json_unknown_function";
+    }
+    return "json_other_object";
+  } catch { return "non_json"; }
+}
+
 function logToolFailure(error, payload, { allowTools, round }, retry, outcome) {
   const fields = toolFailureFields(error);
   const present = fields && typeof fields === "object" && Object.hasOwn(fields, "failed_generation");
@@ -83,7 +131,7 @@ function logToolFailure(error, payload, { allowTools, round }, retry, outcome) {
       `code=${code}; type=${type}; model=${payload.model === GROQ_FALLBACK_MODEL ? "fallback" : "primary"}`,
       `round=${round}; completion=${allowTools ? "intermedia" : "finale"}`,
       `failed_generation_present=${Boolean(present)}; failed_generation_type=${generationType}`,
-      `generation_category=non_disponibile; retry400=${retry ? "utilizzato" : "non_utilizzato"}; retry_outcome=${outcome}`,
+      `generation_category=${generationCategory(generation)}; retry400=${retry ? "utilizzato" : "non_utilizzato"}; retry_outcome=${outcome}`,
     ].join("; "));
   } catch { /* La diagnostica non deve impedire la completion o l'errore controllato. */ }
 }
@@ -92,6 +140,7 @@ async function completeWithToolRetry(payload, modelState, context) {
   try {
     return await complete(payload, modelState);
   } catch (error) {
+    observeErrorCapacity(error, payload, modelState);
     logRateLimit(error, payload, modelState, context);
     const fields = toolFailureFields(error);
     const eligible = error instanceof APIError && error.status === 400 &&
@@ -108,6 +157,7 @@ async function completeWithToolRetry(payload, modelState, context) {
       logToolFailure(error, payload, context, true, "riuscito");
       return completion;
     } catch (retryError) {
+      observeErrorCapacity(retryError, payload, modelState);
       logRateLimit(retryError, payload, modelState, context);
       logToolFailure(retryError, payload, context, true, "fallito");
       throw retryError;
@@ -146,6 +196,7 @@ export async function generateCompletion(messages, { allowTools = true, modelSta
   }
 
   const reply = completion.choices[0]?.message;
+  logCompletion(completion, modelState, context);
 
   if (!reply) {
     throw new Error("Il modello non ha restituito una risposta.");

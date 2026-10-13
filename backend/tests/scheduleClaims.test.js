@@ -37,6 +37,19 @@ const claim = (index, overrides = {}) => ({ study_id: ids[index], visit_name: "W
   window_days: [4, 2, 4, 5][index], source, section: ids[index], ...overrides });
 const packet = (...facts) => ({ schedule_facts: facts });
 
+it.each(["answer", "content", "stringa"])("rifiuta un contratto calendario serializzato in una stringa: %s", async shape => {
+  const serialized = JSON.stringify(packet(claim(0, { window_days: 999 })));
+  const content = JSON.stringify(shape === "stringa" ? serialized : { [shape]: serialized });
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const result = await run("E per lo studio PSI?", content, [tables[0]], selectHistory([
+    { role: "user", content: "Week 6 dello studio NNR-ESK-02" },
+    { role: "assistant", content: "NNR-ESK-02; Week 6: giorno target 42; finestra ±2 giorni." },
+  ]));
+  expect(result.answer).toContain("Informazioni di calendario non verificate");
+  expect(result.answer).not.toContain("999");
+  expect(warn.mock.calls.flat().join(" ")).toContain("code=facts_missing;");
+});
+
 it.each([
   ["facts_missing", "Week 6: giorno target 42, finestra ±2 giorni.", [tables[1]]],
   ["facts_invalid", { schedule_facts: [] }, [tables[1]]],

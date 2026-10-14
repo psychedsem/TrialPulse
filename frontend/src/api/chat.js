@@ -5,7 +5,7 @@ export async function requestChat(message, fetchImpl = globalThis.fetch, history
   let response;
 
   try {
-    response = await fetchImpl("/api/chat", {
+    response = await fetchImpl(`${import.meta.env?.VITE_API_BASE_URL ?? ""}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(history === undefined ? { message } : { message, history }),

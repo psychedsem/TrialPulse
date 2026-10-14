@@ -35,3 +35,6 @@ data_agent/generated_charts/
 # OS/editor
 .DS_Store
 Thumbs.db
+
+# Cache locale Firebase
+.firebase/

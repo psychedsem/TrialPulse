@@ -1,11 +1,19 @@
 import cors from "cors";
+import { publicChatGuard } from "./publicGuard.js";
 import express from "express";
 import { orchestrate } from "./orchestrator.js";
 import { validateHistory } from "./history.js";
 
 export const app = express();
 
-app.use(cors());
+app.set("trust proxy", "loopback");
+app.use(cors({
+  origin: [
+    "https://trialpulse-25650.web.app",
+    "https://trialpulse-25650.firebaseapp.com",
+    "http://localhost:5173"
+  ]
+}));
 app.use(express.json());
 
 app.get("/health", (req, res) => {
@@ -15,7 +23,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", publicChatGuard, async (req, res) => {
   const { message } = req.body ?? {};
 
   if (typeof message !== "string" || !message.trim()) {

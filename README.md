@@ -7,8 +7,8 @@ Ho sviluppato **TrialPulse** come prototipo di agente AI per supportare il lavor
 
 Ho ambientato il progetto in **Novera Neuro Research**, un'azienda biotech fittizia specializzata nella ricerca sui disturbi depressivi. Azienda, studi, siti, partecipanti e dati sono interamente sintetici.
 
-Demo Firebase:
-Repository GitHub:
+**Demo Firebase**: https://trialpulse-25650.web.app/
+**Repository GitHub**: https://github.com/psychedsem/TrialPulse
 
 ## Cosa ho realizzato
 

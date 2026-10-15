@@ -28,18 +28,11 @@ def load_manifest(path=MANIFEST_PATH):
 def document_metadata(source):
     path = Path(source)
     parent = path.parent.name
-    if parent == "protocols":
-        document_type, study_id = "protocol", path.stem
-    elif parent in {"operations", "reference"}:
-        document_type, study_id = parent, None
-    elif path.name == "faq.md":
-        document_type, study_id = "faq", None
-    else:
-        document_type, study_id = "scope", None
-
+    categories = {"protocols": "protocol", "operations": "operations", "reference": "reference"}
+    document_type = categories.get(parent, "faq" if path.name == "faq.md" else "scope")
     metadata = {"source": source, "document_type": document_type}
-    if study_id:
-        metadata["study_id"] = study_id
+    if parent == "protocols":
+        metadata["study_id"] = path.stem
     return metadata
 
 

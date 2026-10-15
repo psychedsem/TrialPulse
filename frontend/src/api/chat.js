@@ -1,7 +1,8 @@
 const FALLBACK_ERROR = "Il servizio non è disponibile in questo momento. Riprova tra poco.";
+import { safeArtifacts } from "../artifacts.js";
 
 /** Invia un messaggio al backend senza esporre indirizzi o credenziali nel browser. */
-export async function requestChat(message, fetchImpl = globalThis.fetch, history) {
+export async function requestChatResult(message, fetchImpl = globalThis.fetch, history) {
   let response;
 
   try {
@@ -27,5 +28,9 @@ export async function requestChat(message, fetchImpl = globalThis.fetch, history
     throw new Error("Il servizio ha restituito una risposta non valida. Riprova.");
   }
 
-  return payload.answer.trim();
+  return { answer: payload.answer.trim(), artifacts: safeArtifacts(payload.artifacts) };
+}
+
+export async function requestChat(message, fetchImpl = globalThis.fetch, history) {
+  return (await requestChatResult(message, fetchImpl, history)).answer;
 }

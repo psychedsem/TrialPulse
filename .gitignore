@@ -27,6 +27,7 @@ __pycache__/
 # Generated data/services
 chroma_db/
 data_agent/generated_charts/
+data_agent/.pandas_queue/
 .tmp/
 
 # Logs

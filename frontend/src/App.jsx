@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { requestChat } from "./api/chat.js";
+import { requestChatResult } from "./api/chat.js";
+import { ChatArtifacts, loadArtifacts, saveArtifacts } from "./artifacts.js";
 import { MessageText } from "./MessageText.js";
 import { loadConversation, saveConversation, selectHistory, resetConversation } from "./conversation.js";
 
@@ -19,7 +20,7 @@ function ArrowUpIcon() {
   );
 }
 
-function Message({ role, text, loading = false }) {
+function Message({ role, text, artifacts, loading = false }) {
   const isUser = role === "user";
   return (
     <article className={`message ${isUser ? "message--user" : "message--assistant"}`} aria-label={loading ? "TrialPulse sta rispondendo" : undefined}>
@@ -29,7 +30,7 @@ function Message({ role, text, loading = false }) {
           {loading ? <>
             <span>TrialPulse sta analizzando la richiesta</span>
             <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
-          </> : <MessageText role={role} text={text} />}
+          </> : <><MessageText role={role} text={text} />{!isUser && <ChatArtifacts artifacts={artifacts} />}</>}
         </div>
       </div>
     </article>
@@ -38,9 +39,10 @@ function Message({ role, text, loading = false }) {
 
 export default function App() {
   const [history, setHistory] = useState(loadConversation);
+  const [artifactMap, setArtifactMap] = useState(() => loadArtifacts(undefined, history));
   const [messages, setMessages] = useState(() => [
     ...INITIAL_MESSAGES,
-    ...history.map(({ role, content }, index) => ({ id: index + 1, role, text: content })),
+    ...history.map(({ role, content }, index) => ({ id: index + 1, role, text: content, artifacts: artifactMap[index] })),
   ]);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -65,11 +67,14 @@ export default function App() {
     setIsSending(true);
 
     try {
-      const answer = await requestChat(message, globalThis.fetch, selectHistory(history));
+      const { answer, artifacts } = await requestChatResult(message, globalThis.fetch, selectHistory(history));
       const completed = [...history, { role: "user", content: message }, { role: "assistant", content: answer }];
       saveConversation(completed);
+      const updatedArtifacts = { ...artifactMap, ...(artifacts.length ? { [history.length + 1]: artifacts } : {}) };
+      saveArtifacts(updatedArtifacts, undefined, completed);
+      setArtifactMap(updatedArtifacts);
       setHistory(completed);
-      setMessages(current => [...current, { id: nextId.current++, role: "assistant", text: answer }]);
+      setMessages(current => [...current, { id: nextId.current++, role: "assistant", text: answer, artifacts }]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Si è verificato un errore. Riprova.");
     } finally {
@@ -81,6 +86,8 @@ export default function App() {
     if (isSending) return;
     if (!resetConversation(messages.length > 1 || Boolean(draft.trim()))) return;
     setHistory([]);
+    saveArtifacts({});
+    setArtifactMap({});
     setMessages(INITIAL_MESSAGES);
     setDraft("");
     setError("");
@@ -126,7 +133,7 @@ export default function App() {
         <div ref={scrollAreaRef} className="chat-stage__scroll" role="log" aria-label="Messaggi della conversazione" aria-live="polite" aria-relevant="additions text">
           <div className="chat-stage__inner">
             {messages.map(message => (
-              <Message key={message.id} role={message.role} text={message.text} />
+              <Message key={message.id} role={message.role} text={message.text} artifacts={message.artifacts} />
             ))}
             {isSending && <Message role="assistant" loading />}
           </div>

@@ -10,6 +10,27 @@ const groq = new Groq({
 // La quota del modello non riparte da zero al successivo turno conversazionale.
 const observedCapacity = new Map();
 
+export async function paceGeneration() {
+  const capacity = observedCapacity.get(GROQ_MODEL);
+  const wait = capacity?.resetAt - Date.now();
+  // Stima prudente della piccola generazione di codice, non una misura di consumo.
+  if (capacity?.remaining < 2500 && wait > 0) {
+    if (wait > 60000) throw new Error("Quota del generatore non ancora disponibile.");
+    await new Promise(resolve => setTimeout(resolve, wait));
+  }
+}
+
+export function observeGenerationQuota(quota, usage = {}) {
+  if (quota?.model !== GROQ_MODEL || !Number.isFinite(quota.remaining) || quota.remaining < 0 ||
+    !Number.isFinite(quota.reset_seconds) || quota.reset_seconds <= 0 || quota.reset_seconds > 3600) {
+    observedCapacity.delete(GROQ_MODEL);
+    return;
+  }
+  const previous = observedCapacity.get(GROQ_MODEL)?.previousCost ?? 2500;
+  observedCapacity.set(GROQ_MODEL, { remaining: quota.remaining, resetAt: Date.now() + quota.reset_seconds * 1000 + 100,
+    previousCost: Math.max(previous, Number.isSafeInteger(usage.total_tokens) ? usage.total_tokens + 600 : 2500) });
+}
+
 async function complete(payload, modelState) {
   const capacity = observedCapacity.get(payload.model) ?? modelState.capacity?.[payload.model];
   const wait = capacity?.resetAt - Date.now();

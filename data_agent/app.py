@@ -1,8 +1,10 @@
+import json
 from fastapi import FastAPI, HTTPException
 
 from data_loader import load_analytic_dataset
 from models import AnalyzeRequest
 from analytics import analyze_dataset
+from dynamic_agent import DynamicRequest, analyze_dynamic
 
 
 app = FastAPI(title="TrialPulse Data Agent")
@@ -27,11 +29,14 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest):
+def analyze(request: AnalyzeRequest | DynamicRequest):
     if LOAD_ERROR:
         raise HTTPException(503, "Dataset TrialPulse non disponibile.")
 
     try:
+        if isinstance(request, DynamicRequest):
+            return analyze_dynamic(request, DATAFRAME)
         return analyze_dataset(DATAFRAME, DATA_QUALITY, request)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        headers = {"X-TrialPulse-Generation-Quota": json.dumps(exc.quota)} if getattr(exc, "quota", None) else None
+        raise HTTPException(400, str(exc), headers=headers) from exc

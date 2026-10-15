@@ -10,6 +10,21 @@ vi.mock("groq-sdk", async importOriginal => ({
 vi.mock("../src/config.js", () => ({ GROQ_API_KEY: "test-placeholder", GROQ_MODEL: "openai/gpt-oss-120b", GROQ_FALLBACK_MODEL: "openai/gpt-oss-20b" }));
 let generateCompletion;
 
+it("coordina la generazione esterna e aggiorna la quota prima della sintesi", async () => {
+  vi.useFakeTimers();
+  const module = await import("../src/llm.js");
+  expect(typeof module.observeGenerationQuota).toBe("function");
+  expect(typeof module.paceGeneration).toBe("function");
+  module.observeGenerationQuota({ model: "openai/gpt-oss-120b", remaining: 100, reset_seconds: 2 }, { total_tokens: 1800 });
+  let complete = false;
+  const pending = module.paceGeneration().then(() => { complete = true; });
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(complete).toBe(false);
+  await vi.advanceTimersByTimeAsync(101);
+  await pending;
+  expect(complete).toBe(true);
+});
+
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();

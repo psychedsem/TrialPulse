@@ -20,9 +20,8 @@ function valid(report) {
     const key = `${group.study_id}/${group.site_id}`;
     if (groups.has(key)) return false;
     groups.add(key);
-    for (const field of ["study_id", "site_id"]) {
-      if (report.scope[field] != null && report.scope[field] !== group[field]) return false;
-    }
+    if (["study_id", "site_id"].some(field =>
+      report.scope[field] != null && report.scope[field] !== group[field])) return false;
     let previous = "";
     for (const row of group.monthly) {
       if (!row || !month(row.month) || row.month <= previous || !count(row.actual_enrolled) || !count(row.target_enrolled) ||
@@ -96,7 +95,7 @@ export async function presentRecruitmentReports(reports, knowledge = [], { recov
     !valid(report) || !report.results.length))) return null;
   const recruitment = reports.filter(report => report.analysis === "recruitment_target");
   if (!recruitment.length) return null;
-  if (recruitment.some(report => !valid(report))) return [
+  if (!recovery && recruitment.some(report => !valid(report))) return [
     "Report recruitment incompleto o incoerente. Nessuna conclusione temporale verificata disponibile.",
     presentReferences(reports, knowledge),
   ].filter(Boolean).join("\n\n");

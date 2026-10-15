@@ -3,6 +3,7 @@ import { TOOLS } from "./tools.js";
 import { buildVisitRules, buildCompletenessRules, selectKnowledge } from "./documentAdapter.js";
 import { validateCompletenessReport } from "./completenessReport.js";
 import { isConnectionRefused, localPythonFallback } from "./pythonBridge.js";
+import { paceGeneration, observeGenerationQuota } from "./llm.js";
 
 const REQUIRED_ANALYSIS_PARAMETERS = {
   major_deviations_window: ["window_days", "min_count"],
@@ -102,10 +103,10 @@ async function requestService(url, args, service) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(args),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(args.analysis === "dynamic" ? 90000 : 60000),
     });
   } catch (error) {
-    if (isConnectionRefused(error)) {
+    if (args.analysis !== "dynamic" && isConnectionRefused(error)) {
       const alternative = await localPythonFallback(url, args, service);
       if (alternative !== null) {
         if (alternative && typeof alternative.error === "string") return alternative;
@@ -115,7 +116,16 @@ async function requestService(url, args, service) {
     return { error: unavailable };
   }
   try {
-    if (response.ok) return validateResponse(await response.json(), args, service);
+    if (response.ok) {
+      const result = validateResponse(await response.json(), args, service);
+      if (args.analysis === "dynamic") observeGenerationQuota(result.generation_usage?.quota, result.generation_usage);
+      return result;
+    }
+    if (args.analysis === "dynamic") {
+      let quota;
+      try { quota = JSON.parse(response.headers?.get("x-trialpulse-generation-quota")); } catch { /* Header non disponibile. */ }
+      observeGenerationQuota(quota);
+    }
     let detail = "";
     if (service === "Data Agent" && [400, 422].includes(response.status)) {
       try { detail = validationDetail(await response.json()); } catch { /* Dettaglio non leggibile. */ }
@@ -139,7 +149,23 @@ function validateResponse(result, args, service) {
     (service === "RAG" || (result.analysis === args.analysis && record(result.scope) &&
       record(result.parameters_applied) && record(result.data_quality)));
   if (!valid) return { error: `Risposta non valida del servizio ${service}. Nessun risultato ottenuto.` };
+  if (args.analysis === "dynamic" && (!Array.isArray(result.artifacts) || result.artifacts.length !== 1 ||
+    !validChart(result.artifacts[0]) || !result.results.length || result.results.length > 120 ||
+    result.results.some(row => typeof row.label !== "string" || row.label.length > 100 ||
+      typeof row.value !== "number" || !Number.isFinite(row.value) || Math.abs(row.value) > 1e12))) {
+    return { error: "Risultato o grafico dell'analisi dinamica non valido." };
+  }
   return result;
+}
+
+function validChart(artifact) {
+  if (!artifact || artifact.type !== "image" || artifact.mime_type !== "image/png" ||
+    typeof artifact.alt !== "string" || artifact.alt.length > 200 ||
+    typeof artifact.data !== "string" || artifact.data.length > 1400000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(artifact.data)) return false;
+  const png = Buffer.from(artifact.data, "base64");
+  return png.length >= 33 && png.length <= 1048576 && png.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) &&
+    png.toString("ascii", 12, 16) === "IHDR" && png.readUInt32BE(16) > 0 && png.readUInt32BE(16) <= 1600 &&
+    png.readUInt32BE(20) > 0 && png.readUInt32BE(20) <= 1200;
 }
 
 function parseToolCall(call) {
@@ -228,52 +254,54 @@ async function completeVisitRules(args) {
 
 export async function executeTool(call) {
   const { name, args, schema } = parseToolCall(call);
+  if (name === "search_knowledge") {
+    if (typeof args.query !== "string" || !args.query.trim()) {
+      throw new Error("La query documentale deve essere un testo non vuoto.");
+    }
+    const result = await requestService(`${RAG_API_URL}/retrieve`, args, "RAG");
+    return result.error ? result : { ...result, results: selectKnowledge(result.results) };
+  }
+  if (args.analysis === "dynamic") {
+    if (Object.keys(args).some(key => !["analysis", "question", "chart", "filters"].includes(key)) ||
+      typeof args.question !== "string" || args.question.trim().length < 3 || args.question.length > 1000 ||
+      !["bar", "line"].includes(args.chart) || (args.filters !== undefined &&
+        (!args.filters || typeof args.filters !== "object" || Array.isArray(args.filters) ||
+          Object.entries(args.filters).some(([key, value]) => !["study_id", "site_id"].includes(key) ||
+            typeof value !== "string" || !/^[A-Z0-9_-]{1,32}$/.test(value))))) {
+      throw new Error("Richiesta dinamica non valida.");
+    }
+    await paceGeneration();
+    return requestService(`${DATA_AGENT_URL}/analyze`, args, "Data Agent");
+  }
+  if (args.question !== undefined || args.chart !== undefined) throw new Error("question e chart sono ammessi solo per dynamic.");
+  if (!schema.properties.analysis.enum.includes(args.analysis)) {
+    throw new Error("Analisi non supportata.");
+  }
+  if (Object.hasOwn(args, "rule_source") &&
+    (args.analysis !== "completeness_threshold" || args.rule_source !== "novera_kb")) {
+    throw new Error("rule_source è ammesso solo come novera_kb per completeness_threshold.");
+  }
+  if (args.analysis === "major_deviations_window" && Array.isArray(args.group_by) &&
+    args.group_by.length === 1 && args.group_by[0] === "site_id") delete args.group_by;
+  if (args.analysis === "recruitment_target" && args.group_by !== undefined &&
+    (!Array.isArray(args.group_by) || args.group_by.length !== 0)) {
+    throw new Error("recruitment_target restituisce gia risultati per studio, sito e mese: ometti group_by.");
+  }
+  validateAnalysisScope(args);
   let documentSupport;
-
-  if (name === "search_knowledge" && (typeof args.query !== "string" || !args.query.trim())) {
-    throw new Error("La query documentale deve essere un testo non vuoto.");
+  if (args.analysis === "completeness_threshold") {
+    if (!Array.isArray(args.group_by)) {
+      throw new Error('completeness_threshold richiede group_by esplicito: [] per aggregare il perimetro, ["site_id"] per siti, ["study_id"] per studi o entrambi. Nessun raggruppamento predefinito.');
+    }
+    documentSupport = await completeCompletenessRules(args);
   }
-  if (name === "analyze_operations") {
-    if (!schema.properties.analysis.enum.includes(args.analysis)) {
-      throw new Error("Analisi non supportata.");
-    }
-    if (Object.hasOwn(args, "rule_source") &&
-      (args.analysis !== "completeness_threshold" || args.rule_source !== "novera_kb")) {
-      throw new Error("rule_source è ammesso solo come novera_kb per completeness_threshold.");
-    }
-    if (
-      args.analysis === "major_deviations_window" &&
-      Array.isArray(args.group_by) && args.group_by.length === 1 && args.group_by[0] === "site_id"
-    ) {
-      delete args.group_by;
-    }
-    if (args.analysis === "recruitment_target" && args.group_by !== undefined &&
-      (!Array.isArray(args.group_by) || args.group_by.length !== 0)) {
-      throw new Error("recruitment_target restituisce gia risultati per studio, sito e mese: ometti group_by.");
-    }
-    validateAnalysisScope(args);
-    if (args.analysis === "completeness_threshold") {
-      if (!Array.isArray(args.group_by)) {
-        throw new Error('completeness_threshold richiede group_by esplicito: [] per aggregare il perimetro, ["site_id"] per siti, ["study_id"] per studi o entrambi. Nessun raggruppamento predefinito.');
-      }
-      documentSupport = await completeCompletenessRules(args);
-    }
-    validateAnalysisParameters(args);
-  }
-
-  const isKnowledgeSearch = name === "search_knowledge";
-  const url = isKnowledgeSearch ? `${RAG_API_URL}/retrieve` : `${DATA_AGENT_URL}/analyze`;
-  const service = isKnowledgeSearch ? "RAG" : "Data Agent";
+  validateAnalysisParameters(args);
   if (args.analysis === "out_of_window") documentSupport = await completeVisitRules(args);
-  const result = await requestService(url, args, service);
-
+  const result = await requestService(`${DATA_AGENT_URL}/analyze`, args, "Data Agent");
   if (args.analysis === "completeness_threshold" &&
     (!result || typeof result !== "object" || Array.isArray(result))) validateCompletenessReport(result, args);
   if (result.error) return result;
   if (documentSupport) result.document_support = documentSupport;
   if (args.analysis === "completeness_threshold") validateCompletenessReport(result, args);
-  if (isKnowledgeSearch && Array.isArray(result.results)) {
-    return { ...result, results: selectKnowledge(result.results) };
-  }
   return result;
 }

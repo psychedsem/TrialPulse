@@ -31,6 +31,13 @@ const scenarios = [
   { name: "finale senza tool", replies: [final], responses: [], completions: 1, requests: 0 },
   { name: "RAG riuscito", replies: [rag("rag_a"), final], responses: [knowledge], completions: 2, requests: 1 },
   { name: "RAG vuoto", replies: [rag("rag_empty"), final], responses: [{ results: [] }], completions: 2, requests: 1 },
+  { name: "testo RAG vuoto senza attivare recuperi generativi", replies: [rag("rag_blank"), final],
+    responses: [{ results: [{ ...knowledge.results[0], text: "  " }] }], completions: 2, requests: 1, knowledge: false },
+  { name: "testo valido dopo evidenze vuote e duplicate", replies: [rag("rag_mixed"), final],
+    responses: [{ results: [{ ...knowledge.results[0], text: "" }, knowledge.results[0], knowledge.results[0]] }],
+    completions: 2, requests: 1, knowledge: true },
+  { name: "testo RAG senza fonte non inventa una provenienza", replies: [rag("rag_unattributed"), final],
+    responses: [{ results: [{ text: "Testo documentale sintetico", distance: 0.2 }] }], completions: 2, requests: 1, knowledge: true },
   { name: "report Data e proiezione per il modello", replies: [data({ analysis: "portfolio_summary" }, "data_a"), final],
     responses: [report], completions: 2, requests: 1 },
   { name: "sequenza RAG e Data", replies: [rag("rag_a"), data({ analysis: "portfolio_summary" }, "data_a"), final],
@@ -70,6 +77,7 @@ it.each(scenarios)("preserva risposta, round, payload, history e tool: $name", a
   const current = await replay(orchestrate, scenario);
   expect(current.completions).toHaveLength(scenario.completions);
   expect(current.requests).toHaveLength(scenario.requests);
+  if (scenario.knowledge !== undefined) expect(current.completions[1].options.hasKnowledgeResult).toBe(scenario.knowledge);
   expect(current.completions[0].messages.slice(1, 3)).toEqual([
     { role: "user", content: "Contesto precedente" }, { role: "assistant", content: "Risposta precedente" }]);
   if (scenario.error) expect(current.outcome.error).toContain(scenario.error);

@@ -4,6 +4,7 @@ vi.mock("../src/llm.js", () => ({ generateCompletion: vi.fn() }));
 import { generateCompletion } from "../src/llm.js";
 import { orchestrate } from "../src/orchestrator.js";
 import { readFileSync } from "node:fs";
+import { presentRecruitmentReports } from "../src/recruitmentReport.js";
 
 const report = () => ({
   analysis: "recruitment_target",
@@ -42,6 +43,20 @@ beforeEach(() => {
   vi.stubGlobal("fetch", transport);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("il recupero rifiuta report vuoti, misti o invalidi ma preserva il report valido", async () => {
+  const empty = { ...report(), results: [] };
+  const invalid = report(); invalid.results[0].monthly[0].actual_enrolled = -1;
+  for (const reports of [[], [empty], [invalid], [report(), { analysis: "queries", results: [] }], [{ analysis: "queries" }, null]]) {
+    expect(await presentRecruitmentReports(reports, [], { recovery: true })).toBeNull();
+  }
+  const normal = await presentRecruitmentReports([report()]);
+  const recovery = await presentRecruitmentReports([report()], [], { recovery: true });
+  expect(recovery.endsWith(normal)).toBe(true);
+  expect(recovery).toContain("La sintesi generativa non è disponibile.");
+  expect(await presentRecruitmentReports([empty])).toContain("Nessun gruppo restituito");
+  expect(await presentRecruitmentReports([invalid])).toContain("Report recruitment incompleto o incoerente");
+});
 
 async function run(value = report(), message = "Recruitment SITE_03 PSI e SER da febbraio a giugno 2026") {
   transport.mockResolvedValue({ ok: true, json: async () => value });

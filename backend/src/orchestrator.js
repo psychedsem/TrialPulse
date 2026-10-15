@@ -16,6 +16,7 @@ function compactToolResult(name, result) {
   if (name !== "analyze_operations" || !result || typeof result !== "object" || result.error) return result;
 
   const compact = pick(result, ["analysis", "scope", "parameters_applied", "results"]);
+  if (result.analysis === "dynamic") compact.artifacts = result.artifacts;
   if (result.document_support) {
     compact.document_support = result.document_support;
     // Il modello riceve la regola applicata, non la tabella completa delle finestre.
@@ -39,6 +40,10 @@ function hasScheduleEvidence(chunk) {
 
 function modelToolResult(name, result) {
   if (!result || result.error) return result;
+  if (name === "analyze_operations" && result.analysis === "dynamic") {
+    const { artifacts, ...context } = result;
+    return context;
+  }
   if (name === "search_knowledge" && Array.isArray(result.results)) {
     return { results: result.results.map(chunk => ({ text: chunk.text, ...modelDocumentReference(chunk),
       ...(hasScheduleEvidence(chunk) ?
@@ -155,7 +160,8 @@ export async function orchestrate(message, history = []) {
         const references = presentReferences(reports, knowledge);
         if (references) answer += `\n\n${references}`;
       }
-      return { answer, tools_used: [...toolsUsed] };
+      const artifacts = reports.filter(report => report.analysis === "dynamic").flatMap(report => report.artifacts ?? []).slice(0, 1);
+      return { answer, tools_used: [...toolsUsed], ...(artifacts.length ? { artifacts } : {}) };
     }
 
     if (forceFinalAnswer) {
@@ -169,9 +175,8 @@ export async function orchestrate(message, history = []) {
       if (call.function.name === "analyze_operations") attemptedDataAnalysis = true;
       const { result, cached } = await runTool(call, completedDataCalls, toolsUsed);
       if (call.function.name === "search_knowledge" && Array.isArray(result?.results)) {
-        if (!result.error && result.results.some(chunk =>
-          typeof chunk?.text === "string" && chunk.text.trim())) hasKnowledgeResult = true;
         for (const chunk of result.results) {
+          if (!result.error && typeof chunk?.text === "string" && chunk.text.trim()) hasKnowledgeResult = true;
           if (typeof chunk.source === "string" &&
             !knowledge.some(source => source.source === chunk.source && source.section === chunk.section && source.text === chunk.text)) knowledge.push(chunk);
         }

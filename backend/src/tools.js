@@ -16,6 +16,7 @@ const ANALYSES = [
   "recruitment_target",
   "query_aging_threshold",
   "completeness_threshold",
+  "dynamic",
 ];
 
 export const TOOLS = [
@@ -43,10 +44,12 @@ export const TOOLS = [
     function: {
       name: "analyze_operations",
       description:
-        "Analizza deterministicamente i dati sintetici. Usa le analisi base per descrivere KPI e le analisi parametriche per regole documentali. Per out_of_window scegli solo filters e group_by: il servizio recupera e verifica autonomamente tutte le finestre e la soglia dalla KB. Non ricopiare visit_windows. Senza study_id il perimetro è l'intero portfolio, non richiede chiarimenti.",
+        "Analizza i dati sintetici. Le 17 analisi esistenti calcolano KPI deterministici. Per grafici o analisi pandas descrittive non coperte scegli dynamic, question autosufficiente e chart bar/line: il Data Agent genera codice eseguito in isolamento. Non usarla per inventare regole Novera o decisioni cliniche. Per out_of_window scegli solo filters e group_by: il servizio recupera e verifica autonomamente finestre e soglia dalla KB. Senza study_id il perimetro è il portfolio.",
       parameters: {
         type: "object",
         properties: {
+          question: { type: "string", minLength: 3, maxLength: 1000, description: "Solo per dynamic: domanda operativa autosufficiente, comprensiva del contesto utile." },
+          chart: { type: "string", enum: ["bar", "line"], description: "Solo per dynamic: barre o serie temporale. Non aggiungere codice, percorsi o opzioni di esecuzione." },
           analysis: {
             type: "string",
             enum: ANALYSES,

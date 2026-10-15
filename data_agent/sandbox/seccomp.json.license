@@ -1,0 +1,11 @@
+Profilo seccomp derivato da Moby Profiles (contributori del progetto Moby).
+Licenza: Apache-2.0; testo originale in LICENSE-APACHE-2.0.txt.
+Fonte di riferimento: https://github.com/moby/profiles/blob/4b8214fc4971e06172938a1f1554ccff6647ee80/seccomp/default.json
+
+Modifiche TrialPulse: esclusione di accept, accept4, bind, connect, listen,
+socket, socketcall e socketpair, e rimozione delle voci divenute vuote.
+Le altre autorizzazioni rimangono condizionate dal profilo derivato.
+Il profilo non basta da solo: l'esecutore aggiunge le restrizioni Docker.
+
+Il testo della licenza di terzi è conservato nella lingua originale, senza
+traduzione sostitutiva e senza applicare questa licenza all'intero TrialPulse.

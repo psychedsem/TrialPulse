@@ -30,6 +30,22 @@ class FakeTokenizer:
 
 
 class RagDocumentTests(unittest.TestCase):
+    def test_classificazione_metadati_preserva_precedenza_e_campi(self):
+        cases = [
+            ("knowledge_base/protocols/NNR-PSI-01.md", "protocol", "NNR-PSI-01"),
+            ("knowledge_base/protocols/faq.md", "protocol", "faq"),
+            ("knowledge_base/operations/faq.md", "operations", None),
+            ("knowledge_base/reference/visit_schedule_windows.md", "reference", None),
+            ("knowledge_base/faq.md", "faq", None),
+            ("knowledge_base/00_scope.md", "scope", None),
+        ]
+        for source, kind, study in cases:
+            with self.subTest(source=source):
+                expected = {"source": source, "document_type": kind}
+                if study is not None:
+                    expected["study_id"] = study
+                self.assertEqual(document_metadata(source), expected)
+
     def test_manifest_contains_only_approved_documents(self):
         manifest = load_manifest()
         ingest = manifest["ingest"]

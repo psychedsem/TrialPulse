@@ -1,0 +1,142 @@
+name: Verifiche TrialPulse
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      rag_model:
+        description: "Esegue anche il RAG con download del modello reale"
+        type: boolean
+        default: false
+      docker_runtime:
+        description: "Costruisce e verifica i quattro servizi Docker isolati"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix frontend
+      - run: npm --prefix backend test
+      - run: npm --prefix frontend test
+      - run: npm --prefix frontend run test:react
+      - run: npm --prefix frontend run lint
+      - run: npm --prefix frontend run lint:strict
+      - run: npm --prefix frontend run format:check
+      - run: npm --prefix frontend run build
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm --prefix frontend run test:e2e
+      - name: Configurazione Compose (nessun file segreto)
+        run: docker compose --env-file backend/.env.example config --quiet
+
+  python-light:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: |
+            data_agent/requirements-runtime.txt
+            requirements-dev.txt
+      - run: python -m pip install -r data_agent/requirements-runtime.txt -r requirements-dev.txt
+      - run: python -m ruff check
+      - run: python -m black --check .
+      - run: python -m mypy
+      - name: Test Python senza modello e senza Docker
+        run: >-
+          python -m pytest tests/unit tests/test_data_agent.py tests/test_data_loader.py
+          tests/test_dynamic_agent.py tests/test_pandas_sandbox.py tests/test_validate_kb.py
+          tests/test_python_bridge.py
+      - run: python scripts/validate_kb.py
+      - name: Test esclusi dal profilo leggero
+        run: echo "RAG con modello reale e runtime Docker richiedono workflow_dispatch e opzione esplicita. Nessuna chiamata LLM in CI."
+
+  rag-model:
+    if: github.event_name == 'workflow_dispatch' && inputs.rag_model
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - run: python -m pip install -r data_agent/requirements-runtime.txt -r rag/requirements.txt -r requirements-dev.txt
+      - name: RAG su indici temporanei, con download esplicito del modello
+        run: python -m pytest tests/test_rag_documents.py tests/test_rag_api.py tests/test_rag_retrieval.py
+
+  docker-runtime:
+    if: github.event_name == 'workflow_dispatch' && inputs.docker_runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Costruzione immagini senza segreti
+        run: docker compose --env-file backend/.env.example build
+      - name: Indice nel solo volume QA
+        run: docker compose --env-file backend/.env.example run --rm --no-deps rag python build_index.py
+      - name: Avvio e health dei quattro servizi
+        run: docker compose --env-file backend/.env.example up --wait --wait-timeout 180
+      - name: Retrieval reale senza provider LLM
+        run: >-
+          curl --fail-with-body --silent --show-error http://127.0.0.1:18001/retrieve
+          -H 'Content-Type: application/json'
+          -d '{"query":"Quali sono le regole di data completeness?"}'
+          | python -c "import json,sys; rows=json.load(sys.stdin)['results']; assert rows; assert all(row['source'].startswith('knowledge_base/') for row in rows)"
+      - name: Diagnostica in caso di errore
+        if: failure()
+        run: docker compose --env-file backend/.env.example logs --no-color
+      - name: Arresto dei soli container QA
+        if: always()
+        run: docker compose --env-file backend/.env.example down
+
+  sandbox-isolation:
+    if: github.event_name == 'workflow_dispatch' && inputs.docker_runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Immagine isolata esistente, distinta dai servizi ordinari
+        run: docker build -f data_agent/sandbox/Dockerfile -t trialpulse-sandbox:ci data_agent
+      - name: Identita immutabile richiesta dall'executor
+        run: docker image inspect --format 'TRIALPULSE_SANDBOX_IMAGE={{.Id}}' trialpulse-sandbox:ci >> "$GITHUB_ENV"
+      - name: Test reali del confine Docker senza LLM
+        run: python -m pytest tests/test_pandas_docker.py

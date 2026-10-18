@@ -1,0 +1,2 @@
+# Conserva i byte del CSV ufficiale anche nei checkout Linux e macOS.
+data/trialpulse_operations.csv text eol=crlf

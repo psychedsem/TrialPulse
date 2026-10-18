@@ -20,6 +20,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.json
+htmlcov/
+.ruff_cache/
+.mypy_cache/
 
 # Jupyter
 .ipynb_checkpoints/

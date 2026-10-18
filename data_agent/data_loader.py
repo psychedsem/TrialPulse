@@ -1,6 +1,10 @@
 from pathlib import Path
+from hashlib import sha256
+from io import BytesIO
+from typing import Any
 
 import pandas as pd
+from result_cache import ResultCache
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -14,7 +18,29 @@ DATE_COLUMNS = [
 ]
 
 
-def load_analytic_dataset(path=DATASET_PATH):
+SNAPSHOTS = ResultCache(maxsize=4, ttl=300)
+
+
+def load_analytic_dataset(
+    path: Any = DATASET_PATH, *, refresh: bool = False, use_cache: bool = True
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Restituisce copie isolate; il digest invalida anche modifiche di pari dimensione."""
+    if not use_cache or hasattr(path, "read"):
+        return _read_analytic_dataset(path)
+    path = Path(path).resolve()
+    if refresh:
+        SNAPSHOTS.clear()
+    for _ in range(3):
+        before = path.stat()
+        content = path.read_bytes()
+        after = path.stat()
+        if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) == (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            key = (str(path), sha256(content).hexdigest())
+            return SNAPSHOTS.get_or_create(key, lambda: _read_analytic_dataset(BytesIO(content)))
+    raise OSError("Dataset modificato durante la lettura: riprovare su un file stabile.")
+
+
+def _read_analytic_dataset(path: Any) -> tuple[pd.DataFrame, dict[str, Any]]:
     raw = pd.read_csv(path)
     df = raw.drop_duplicates().copy()
 

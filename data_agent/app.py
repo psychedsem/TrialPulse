@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 
 from data_loader import load_analytic_dataset
 from models import AnalyzeRequest
-from analytics import analyze_dataset
+from analysis_cache import cached_analysis as analyze_dataset
 from dynamic_agent import DynamicRequest, analyze_dynamic
 
 

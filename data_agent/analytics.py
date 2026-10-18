@@ -38,7 +38,7 @@ FILTERS = {
 }
 
 
-def ratio(numerator, denominator):
+def ratio(numerator: float, denominator: float) -> float | None:
     return numerator / denominator * 100 if denominator else None
 
 

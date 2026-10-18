@@ -1,0 +1,79 @@
+name: trialpulse-qa
+
+services:
+  data-agent:
+    build:
+      context: .
+      dockerfile: data_agent/Dockerfile
+    environment:
+      TRIALPULSE_PANDAS_ENABLED: "0"
+    ports: ["127.0.0.1:${TRIALPULSE_QA_DATA_PORT:-18000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5))['dataset_loaded']"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 30s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  rag:
+    build:
+      context: .
+      dockerfile: rag/Dockerfile
+    volumes:
+      - qa-chroma:/app/rag/chroma_db
+      - qa-model-cache:/home/app/.cache/huggingface
+    ports: ["127.0.0.1:${TRIALPULSE_QA_RAG_PORT:-18001}:8001"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,pathlib,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8001/health',timeout=5))['status']=='ok'; assert pathlib.Path('/app/rag/chroma_db/chroma.sqlite3').is_file()"]
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 60s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      GROQ_API_KEY: "${TRIALPULSE_QA_GROQ_API_KEY:-}"
+      DATA_AGENT_URL: http://data-agent:8000
+      RAG_API_URL: http://rag:8001
+      PYTHON_BRIDGE_ENABLED: "false"
+    depends_on:
+      data-agent: {condition: service_healthy}
+      rag: {condition: service_healthy}
+    ports: ["127.0.0.1:${TRIALPULSE_QA_BACKEND_PORT:-13001}:3001"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      BACKEND_PROXY_TARGET: http://backend:3001
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["127.0.0.1:${TRIALPULSE_QA_FRONTEND_PORT:-15173}:5173"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+volumes:
+  qa-chroma:
+    name: trialpulse-qa-chroma
+  qa-model-cache:
+    name: trialpulse-qa-model-cache

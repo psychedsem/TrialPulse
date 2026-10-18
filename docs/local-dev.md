@@ -32,6 +32,24 @@ Per le risposte documentali locali serve un indice RAG già disponibile.
 Il launcher non lo ricostruisce automaticamente.
 
 Se il comando disponibile è `python3`, usarlo al posto di `python` negli esempi.
+
+### Comandi Bash per macOS/Linux
+
+Dalla radice di una nuova copia, con Python e Node nelle versioni richieste. Dopo `setup --full` e l'attivazione della venv, inizializzare l'indice **soltanto se assente** con `python rag/build_index.py`, prima di `start`. Il comando sostituisce la collezione esistente: non usarlo su un indice già preparato.
+
+```bash
+python3 scripts/dev.py setup --full
+test -e backend/.env || cp backend/.env.example backend/.env
+# Inserire la chiave soltanto nel file backend/.env locale, prima dell'avvio.
+source .venv/bin/activate
+python -m pytest tests/unit tests/test_data_agent.py tests/test_data_loader.py
+# Se l'indice manca, eseguire prima: python rag/build_index.py
+python scripts/dev.py start
+# Arrestare i soli processi di questa sessione con Ctrl+C nello stesso terminale.
+```
+
+`setup --full` installa dipendenze ma non prepara l'indice RAG: `start` richiede un indice già disponibile. Su una nuova copia usare le istruzioni del README per inizializzarlo, senza ricostruire un indice esistente. I comandi sono predisposti per Bash; la presenza delle istruzioni non certifica un'esecuzione nativa su macOS o Linux. Le verifiche CI su Ubuntu hanno un perimetro distinto dall'avvio completo locale.
+
 `test` esegue backend, test frontend legacy e React, build, lint, formato e Python
 leggero. `test --full` include la raccolta Python completa con il modello RAG;
 i test del sandbox Docker restano opt-in tramite la loro configurazione dedicata.

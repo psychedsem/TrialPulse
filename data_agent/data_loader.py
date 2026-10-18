@@ -18,7 +18,7 @@ DATE_COLUMNS = [
 ]
 
 
-SNAPSHOTS = ResultCache(maxsize=4, ttl=300)
+SNAPSHOTS: ResultCache[tuple[pd.DataFrame, dict[str, Any]]] = ResultCache(maxsize=4, ttl=300)
 
 
 def load_analytic_dataset(
@@ -67,7 +67,7 @@ def _read_analytic_dataset(path: Any) -> tuple[pd.DataFrame, dict[str, Any]]:
     df["_actual_date_usable"] = df["actual_date"].notna() & ~bad_actual_date
     df["_query_consistent"] = ~bad_query
 
-    quality = {
+    quality: dict[str, Any] = {
         "physical_rows": len(raw),
         "logical_rows": len(df),
         "duplicates_removed": len(raw) - len(df),

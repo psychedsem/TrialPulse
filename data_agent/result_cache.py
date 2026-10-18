@@ -5,10 +5,9 @@ from collections.abc import Callable, Hashable
 from copy import deepcopy
 from threading import RLock
 from time import monotonic
-from typing import Any
 
 
-class ResultCache:
+class ResultCache[T]:
     def __init__(
         self,
         maxsize: int = 64,
@@ -20,10 +19,10 @@ class ResultCache:
         self._maxsize = maxsize
         self._ttl = ttl
         self._clock = clock
-        self._values: OrderedDict[Hashable, tuple[float, Any]] = OrderedDict()
+        self._values: OrderedDict[Hashable, tuple[float, T]] = OrderedDict()
         self._lock = RLock()
 
-    def get_or_create(self, key: Hashable, create: Callable[[], Any]) -> Any:
+    def get_or_create(self, key: Hashable, create: Callable[[], T]) -> T:
         with self._lock:
             now = self._clock()
             for expired in [k for k, (deadline, _) in self._values.items() if deadline <= now]:

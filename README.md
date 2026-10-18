@@ -1,5 +1,7 @@
 # TrialPulse
 
+[![Verifiche CI](https://github.com/psychedsem/TrialPulse/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/psychedsem/TrialPulse/actions/workflows/ci.yml?query=branch%3Amain)
+
 **Agente AI multi-tool per le Clinical Research Operations**
 Progetto finale del Master in AI e Agenti AI per il Business
 
@@ -137,6 +139,8 @@ Get-FileHash .\data\trialpulse_operations.csv -Algorithm SHA256
 ```
 
 ## Installazione e avvio locale
+
+Per il launcher automatico nativo, i comandi Bash su macOS/Linux e l'alternativa Docker Compose, consultare [Sviluppo e verifiche locali](docs/local-dev.md). Le procedure sono predisposte per i tre sistemi; l'esecuzione nativa su macOS/Linux richiede una verifica sul relativo sistema.
 
 Ho sviluppato e verificato il prototipo su **Windows/PowerShell**, con **Node.js 24.19.0**, **npm 11.17.0** e **Python 3.14.2**. Per riprodurre l'ambiente su una nuova copia, ho previsto i seguenti comandi dalla root del progetto:
 

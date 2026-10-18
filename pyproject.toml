@@ -26,5 +26,11 @@ force-exclude = '(\.venv|node_modules|chroma_db|generated_charts|data_agent/conf
 
 [tool.mypy]
 python_version = "3.14"
-files = ["data_agent/result_cache.py"]
+files = ["data_agent/result_cache.py", "data_agent/data_loader.py"]
+mypy_path = "data_agent"
 strict = true
+
+# pandas non distribuisce stub: il controllo del loader non verifica le operazioni DataFrame.
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*"]
+ignore_missing_imports = true

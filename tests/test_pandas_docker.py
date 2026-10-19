@@ -19,6 +19,24 @@ DOCKER = os.environ.get("TRIALPULSE_DOCKER", "docker")
 
 @unittest.skipUnless(IMAGE, "Immagine Docker non configurata: test reale non eseguito.")
 class DockerIsolationTests(unittest.TestCase):
+    def test_sorgenti_leggibili_dall_utente_non_root(self):
+        result = self.probe(
+            "import os,json,stat; "
+            "paths=['/app/pandas_protocol.py','/app/runner.py']; "
+            "print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),"
+            "'files':[{'path':path,'mode':stat.S_IMODE(os.stat(path).st_mode),"
+            "'readable':bool(open(path,'rb').read()),'writable':os.access(path,os.W_OK)} "
+            "for path in paths]}))"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {
+            "uid": 65532, "gid": 65532,
+            "files": [
+                {"path": "/app/pandas_protocol.py", "mode": 0o644, "readable": True, "writable": False},
+                {"path": "/app/runner.py", "mode": 0o644, "readable": True, "writable": False},
+            ],
+        })
+
     def test_executor_pubblica_solo_output_validato_dal_confine_docker(self):
         import pandas_executor
         valid = "participants = df.loc[df['screening_failure'].eq(False)]\nresult = participants.groupby('study_id')['participant_id'].nunique().reset_index(name='value').rename(columns={'study_id':'label'})"

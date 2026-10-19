@@ -24,6 +24,8 @@ class DockerIsolationTests(unittest.TestCase):
             "import os,json,stat; "
             "paths=['/app/pandas_protocol.py','/app/runner.py']; "
             "print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),"
+            "'app_mode':stat.S_IMODE(os.stat('/app').st_mode),"
+            "'app_accessible':os.access('/app',os.R_OK|os.X_OK),"
             "'files':[{'path':path,'mode':stat.S_IMODE(os.stat(path).st_mode),"
             "'readable':bool(open(path,'rb').read()),'writable':os.access(path,os.W_OK)} "
             "for path in paths]}))"
@@ -31,6 +33,7 @@ class DockerIsolationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {
             "uid": 65532, "gid": 65532,
+            "app_mode": 0o755, "app_accessible": True,
             "files": [
                 {"path": "/app/pandas_protocol.py", "mode": 0o644, "readable": True, "writable": False},
                 {"path": "/app/runner.py", "mode": 0o644, "readable": True, "writable": False},

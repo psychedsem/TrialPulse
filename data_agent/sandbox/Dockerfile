@@ -4,5 +4,6 @@ COPY --chmod=644 pandas_protocol.py /app/pandas_protocol.py
 COPY --chmod=644 sandbox/runner.py /app/runner.py
 WORKDIR /app
 ENV MPLCONFIGDIR=/tmp/matplotlib OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONHASHSEED=0 TZ=UTC
+RUN chmod 755 /app
 USER 65532:65532
 ENTRYPOINT ["python", "-I", "-B", "/app/runner.py"]

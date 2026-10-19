@@ -5,12 +5,13 @@ import hashlib
 import json
 import os
 import re
+import signal
 import time
 from pathlib import Path
 
 from data_loader import DATASET_PATH, load_analytic_dataset
 from pandas_protocol import validate_job
-from pandas_sandbox import container_command, execute_isolated
+from pandas_sandbox import SandboxCleanupError, container_command, execute_isolated
 
 ERROR = "Analisi dinamica non completata in sicurezza."
 
@@ -76,24 +77,46 @@ def main():
         raise ValueError("Coda non valida.")
     queue.mkdir(parents=True, exist_ok=True)
     lock = queue / "executor.lock"
-    # Una sola istanza. Un lock residuo richiede verifica manuale, non viene aggirato.
-    with lock.open("x", encoding="ascii") as stream:
-        stream.write(str(os.getpid()))
     heartbeat = queue / "executor.ready"
+    stopping = False
+    owns_lock = False
+    cleanup_confirmed = True
+
+    def stop(signum, frame):
+        nonlocal stopping
+        # Il job corrente conserva timeout e cleanup; altri segnali non li interrompono.
+        stopping = True
+
+    previous_handlers = {sig: signal.signal(sig, stop) for sig in (signal.SIGTERM, signal.SIGINT)}
     try:
-        while True:
+        # Una sola istanza. Un lock residuo richiede verifica manuale, non viene aggirato.
+        with lock.open("x", encoding="ascii") as stream:
+            owns_lock = True
+            stream.write(str(os.getpid()))
+        while not stopping:
             heartbeat.touch()
             pending = sorted(queue.glob("*.request.json"))
             for request in pending[:8]:
+                if stopping:
+                    break
                 process_request(request, args.image, args.docker)
                 request.unlink(missing_ok=True)
             for response in queue.glob("*.response.json"):
                 if re.fullmatch(r"[a-f0-9]{32}\.response\.json", response.name) and not response.is_symlink() and time.time() - response.stat().st_mtime > 60:
                     response.unlink(missing_ok=True)
             time.sleep(0.1)
+    except SandboxCleanupError:
+        cleanup_confirmed = False
+        raise
     finally:
-        heartbeat.unlink(missing_ok=True)
-        lock.unlink(missing_ok=True)
+        try:
+            if owns_lock:
+                heartbeat.unlink(missing_ok=True)
+                if cleanup_confirmed:
+                    lock.unlink(missing_ok=True)
+        finally:
+            for sig, handler in previous_handlers.items():
+                signal.signal(sig, handler)
 
 
 if __name__ == "__main__":

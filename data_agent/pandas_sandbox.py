@@ -71,13 +71,17 @@ def execute_isolated(job, records, image, docker="docker", timeout=20):
     finally:
         if watchdog:
             watchdog.cancel()
-        if process and process.poll() is None:
-            process.kill()
-            process.wait(timeout=5)
-        if process:
-            process.stdout.close()
-            if not process.stdin.closed:
-                process.stdin.close()
+        client_error = None
+        try:
+            if process and process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+            if process:
+                process.stdout.close()
+                if not process.stdin.closed:
+                    process.stdin.close()
+        except (OSError, subprocess.SubprocessError) as exc:
+            client_error = exc
         # La terminazione del client non è sufficiente: rimuove l'intero job.
         try:
             cleanup = subprocess.run([docker, "rm", "-f", name], stdout=subprocess.DEVNULL,
@@ -86,5 +90,5 @@ def execute_isolated(job, records, image, docker="docker", timeout=20):
                                    capture_output=True, env=env, timeout=10, check=False)
         except (OSError, subprocess.SubprocessError) as exc:
             raise SandboxCleanupError("Cleanup isolato non verificato: esecutore da arrestare.") from exc
-        if cleanup.returncode or check.returncode or check.stdout.strip():
-            raise SandboxCleanupError("Cleanup isolato non verificato: esecutore da arrestare.")
+        if client_error or cleanup.returncode or check.returncode or check.stdout.strip():
+            raise SandboxCleanupError("Cleanup isolato non verificato: esecutore da arrestare.") from client_error

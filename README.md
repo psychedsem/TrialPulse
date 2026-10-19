@@ -9,42 +9,47 @@ Ho sviluppato **TrialPulse** come prototipo di agente AI per supportare il lavor
 
 Ho ambientato il progetto in **Novera Neuro Research**, un'azienda biotech fittizia specializzata nella ricerca sui disturbi depressivi. Azienda, studi, siti, partecipanti e dati sono interamente sintetici.
 
-**Demo Firebase**: https://trialpulse-25650.web.app/
-**Repository GitHub**: https://github.com/psychedsem/TrialPulse
+**[Apri la demo su Firebase](https://trialpulse-25650.web.app/)** | **[Esplora il repository GitHub](https://github.com/psychedsem/TrialPulse)**
 
-**Schermate dei test**: [Visualizza la cartella con gli screenshot dei test completi](docs/test-gallery/)
+**Schermate dei test:** [Visualizza la cartella con gli screenshot dei test completi](docs/test-gallery/)
 
 ## TrialPulse in azione
 
-Queste catture provengono dall'applicazione e mostrano esempi osservati, non una garanzia che ogni generazione successiva produca lo stesso esito.
-
-![Recupero documentale e follow-up tra studi](docs/test-gallery/1B.Recupero_documentale_mirato.png)
-
-![Applicazione di una regola ai dati mensili](docs/test-gallery/5.Regola_operativa_dati_mensili.png)
-
-![Pandas agent con grafico a barre nella chat](docs/test-gallery/7.Pandas_agent_dinamico_grafico_barre.png)
-
-![Pandas agent con grafico a linee nella chat](docs/test-gallery/8.Pandas_agent_dinamico_grafico_lineare.png)
+Le schermate della galleria documentano esempi osservati nell'applicazione, tra cui recupero documentale, analisi operative e grafici. Sono evidenze di prove specifiche, non una garanzia che ogni generazione successiva produca lo stesso risultato.
 
 Galleria completa: [1A - chiarimento](docs/test-gallery/1A.Disambiguazione_richiesta_documentale.png), [1B - documentazione](docs/test-gallery/1B.Recupero_documentale_mirato.png), [2 - KPI portfolio](docs/test-gallery/2.KPI_Operativi_portfolio.png), [3 - confronto studi](docs/test-gallery/3.Confronto_operativo_studi.png), [4 - tabella comparativa](docs/test-gallery/4.Tabella_comparativa_studi.png), [5 - regola e dati](docs/test-gallery/5.Regola_operativa_dati_mensili.png), [6 - andamento mensile](docs/test-gallery/6.Andamento_mensile_recruitment.png), [7 - pandas e grafico a barre](docs/test-gallery/7.Pandas_agent_dinamico_grafico_barre.png), [8 - pandas e grafico a linee](docs/test-gallery/8.Pandas_agent_dinamico_grafico_lineare.png).
 
-Le catture dei Test 7 e 8, disponibili nella galleria, provengono dal Chrome dell'operatore sui servizi locali ordinari. Mostrano gli arruolamenti mensili dei quattro studi, rispettivamente con un grafico a barre e un grafico a linee, da febbraio a giugno 2026. Queste verifiche manuali sono distinte dai test automatici e non garantiscono lo stesso esito in ogni generazione successiva.
+Le catture dei Test 7 e 8 provengono dal browser sui servizi locali ordinari. Mostrano gli arruolamenti mensili dei quattro studi, rispettivamente con un grafico a barre e uno a linee, da febbraio a giugno 2026. Queste verifiche manuali sono distinte dai test automatici.
 
-## Cosa ho realizzato
+## Funzionalità
 
-Ho progettato un agente che sceglie autonomamente gli strumenti necessari alla domanda, anziché seguire un semplice instradamento basato su parole chiave. Ho implementato tre modalità di lavoro:
+TrialPulse utilizza un **modello linguistico come orchestratore**: interpreta la domanda, seleziona gli strumenti pertinenti e, quando necessario, li richiama in sequenza. Non dipende da un instradamento rigido basato esclusivamente su parole chiave.
 
-- **RAG-only:** recupero protocolli, calendari delle visite, procedure e regole operative dalla Knowledge Base interna Novera.
-- **Data-only:** analisi dei dati sintetici tramite Python e pandas, con KPI di recruitment, screening, retention, visite, completezza, deviazioni, query e trend.
-- **RAG → Data:** recupero una regola documentale e la applico ai dati, per esempio per verificare finestre di visita o condizioni di escalation.
+| Modalità | Cosa permette di fare |
+| --- | --- |
+| **RAG-only** | Consultare protocolli, schedule delle visite, procedure, FAQ e regole operative della Knowledge Base Novera, riportando le fonti documentali. |
+| **Data-only** | Esplorare il CSV sintetico, calcolare KPI, confrontare studi e siti, individuare anomalie e osservare trend. |
+| **RAG → Data** | Recuperare una regola dalla documentazione e applicarla ai dati, per esempio per le finestre di visita o le soglie di escalation. |
 
-Ho previsto domande di chiarimento quando manca lo studio di riferimento, verifiche sulla provenienza delle informazioni e risposte prudenti quando i documenti o i dati non sostengono una conclusione. Ho mantenuto separati i risultati del CSV, le regole interne Novera e gli eventuali suggerimenti operativi.
+L'agente distingue dati del CSV, regole interne fittizie e interpretazioni operative. Chiede chiarimenti quando una richiesta è ambigua e segnala quando non dispone di elementi sufficienti per rispondere.
 
-Ho disegnato un’interfaccia responsive con identità grafica dedicata, supporto a Markdown e tabelle, gestione degli errori, invio con Enter e nuova riga con Shift+Enter.
+### Analisi operative e visualizzazioni
+
+Il Data Agent mette a disposizione **17 analisi deterministiche** per recruitment e target, screening failure, retention e dropout, completamento e mancata esecuzione delle visite, completezza dei dati, deviazioni, query e relativi tempi, confronti tra studi e siti e andamento nel tempo. Le metriche rispettano filtri e denominatori definiti, mentre le anomalie del dataset vengono esplicitate.
+
+Per domande che richiedono un'elaborazione descrittiva personalizzata, TrialPulse dispone anche di un **pandas agent dinamico**. Il modello orchestratore può scegliere `analyze_operations` con `analysis: "dynamic"` e richiedere un grafico `bar` o `line`. Una generazione LLM dedicata produce codice pandas sulla base della domanda, della tipologia di grafico e dei nomi delle colonne, senza ricevere i record del dataset.
+
+Il codice passa attraverso validazioni e una **coda locale privata** prima di essere eseguito in un container Docker isolato. Un executor separato carica il CSV, deduplica i record e applica i filtri; il container riceve soltanto i dati necessari, senza mount del repository, accesso alla rete o credenziali. Tabella e PNG Matplotlib derivano dallo stesso risultato. Sono previsti fino a **12 serie** e **120 righe** di output; i periodi senza osservazioni non vengono trasformati automaticamente in zeri.
+
+Il risultato grafico viene mostrato nella chat tramite il campo opzionale `artifacts` dell'API, senza inserire codice generato o PNG in base64 nella cronologia inviata al modello. Le immagini recenti possono essere ripristinate tramite `sessionStorage`, entro limiti di dimensione e disponibilità dello storage.
+
+### Interfaccia
+
+Il frontend React/Vite offre un'interfaccia responsive con identità visiva dedicata, risposte Markdown, tabelle, grafici, gestione degli errori e dello stato di caricamento. Supporta **Invio** per inviare, **Shift+Invio** per andare a capo, cronologia recente nella sessione del browser e nuova conversazione con conferma di azzeramento. I metadati Open Graph e Twitter Card consentono la visualizzazione della cover ufficiale quando viene condiviso il link, dopo la pubblicazione della relativa build.
 
 ## Studi e scenario operativo
 
-Ho costruito un portfolio di quattro studi sui disturbi depressivi, con popolazione sintetica di età compresa tra 18 e 65 anni e sintomatologia almeno moderata.
+Il portfolio Novera comprende quattro studi fittizi sui disturbi depressivi, con partecipanti sintetici di **18-65 anni** e severità almeno moderata.
 
 | Studio | Trattamento | Popolazione |
 | --- | --- | --- |
@@ -53,60 +58,51 @@ Ho costruito un portfolio di quattro studi sui disturbi depressivi, con popolazi
 | `NNR-DXB-03` | Destrometorfano + bupropione | MDD |
 | `NNR-SER-04` | Sertralina | MDD |
 
-Ho distribuito le attività su **otto siti fittizi**: Roma (`SITE_01`), Milano (`SITE_02`), Barcellona (`SITE_03`), Parigi (`SITE_04`), Amsterdam (`SITE_05`), Berlino (`SITE_06`), Londra (`SITE_07`) e Zurigo (`SITE_08`). Ho inserito criticità riconoscibili, come recruitment lento a Barcellona, query aging elevato ad Amsterdam e visite mancate a Londra, insieme a siti con prestazioni migliori.
+La rete comprende **otto siti fittizi**: Roma (`SITE_01`), Milano (`SITE_02`), Barcellona (`SITE_03`), Parigi (`SITE_04`), Amsterdam (`SITE_05`), Berlino (`SITE_06`), Londra (`SITE_07`) e Zurigo (`SITE_08`). Tra gli scenari simulati figurano recruitment lento a Barcellona, query aging elevato ad Amsterdam, visite mancate a Londra e siti con prestazioni migliori.
 
-## Architettura e Knowledge Base
+## Architettura e distribuzione
 
-Ho separato l'applicazione in quattro componenti, mantenendo l'orchestrazione nel backend:
+L'applicazione mantiene separati orchestrazione, analisi strutturate, recupero documentale e interfaccia.
 
 | Componente | Tecnologie | Responsabilità |
 | --- | --- | --- |
-| Frontend | React, Vite | Interfaccia conversazionale e cronologia recente |
-| Backend | Node.js, Express, SDK Groq | Endpoint `POST /api/chat`, scelta e sequenza dei tool |
-| Data Agent | Python, FastAPI, pandas | Analisi del CSV e calcolo dei KPI |
-| RAG | Python, FastAPI, ChromaDB | Ricerca semantica nei documenti Novera |
+| **Frontend** | React, Vite | Interfaccia conversazionale, rendering Markdown e artefatti grafici |
+| **Backend** | Node.js, Express, SDK Groq | `POST /api/chat`, scelta e sequenza dei tool, gestione delle risposte |
+| **Data Agent** | Python, FastAPI, pandas | KPI, filtri, qualità dei dati e preparazione delle richieste dinamiche |
+| **RAG** | Python, FastAPI, ChromaDB | Ricerca semantica nei documenti operativi Novera |
+| **Executor pandas** | Python, Docker | Esecuzione isolata dei job dinamici e produzione dei grafici |
 
-Nella demo pubblica il frontend statico è su **Firebase Hosting**; backend Node, Data Agent e RAG sono sulla **VM Linux Google Cloud Compute Engine**, con HTTPS tramite Caddy e processi gestiti da systemd. La nuova capacità dinamica è collaudata in locale: questi test non ne attestano l'abilitazione o la sicurezza sulla VM. Non richiede nuovi endpoint pubblici.
+La **demo pubblica** utilizza Firebase Hosting per il frontend statico e una VM Linux su **Google Cloud Compute Engine** per backend, Data Agent e RAG. Caddy espone l'API in HTTPS e systemd gestisce i servizi applicativi. I componenti server comunicano tramite HTTP locale; chiavi e altre credenziali restano lato server, fuori dal repository.
 
-### Analisi deterministiche e pandas agent dinamico
+L'executor pandas non è un servizio web e **non espone endpoint pubblici**. Sulla VM sono stati predisposti Docker rootless con utente dedicato, immagine sandbox e coda privata; i controlli di avvio e dei limiti delle risorse sono riusciti. **L'integrazione runtime e l'abilitazione pubblica dei grafici dinamici devono ancora essere collaudate**: la presenza del codice e dell'infrastruttura non equivale alla disponibilità della funzione sulla demo Firebase.
 
-Le **17 analisi deterministiche** mantengono formule, filtri e controlli predefiniti. In aggiunta, il modello orchestratore può scegliere `analyze_operations` con `analysis: "dynamic"`, una domanda autosufficiente e `chart: "bar"` oppure `"line"`. Il Data Agent usa una generazione LLM separata per produrre codice pandas; non invia al generatore i record del CSV, ma domanda, tipo di grafico e nomi delle colonne.
+### Knowledge Base e applicazione delle regole
 
-Il codice viene validato e inviato a una **coda locale privata**. Un **processo executor separato**, avviato dall'operatore, valida il job, carica i dati sintetici deduplicati e applica i filtri prima di passarli al container. FastAPI non invoca Docker e non deve avere accesso al suo socket. Il codice generato non decide comandi Docker, mount, privilegi o immagine.
+La Knowledge Base contiene **11 documenti operativi fittizi**: protocol synopsis, calendari e finestre di visita, SOP, linee guida di monitoring, ruoli, responsabilità, FAQ e criteri di escalation. ChromaDB indicizza i documenti e il modello `intfloat/multilingual-e5-small` ne produce gli embedding.
 
-Il container effimero esegue pandas e il wrapper matplotlib: tabella e grafico derivano dallo stesso risultato. React mostra il PNG accanto alla sintesi italiana. Sono ammessi barre e serie temporali, al massimo 120 righe e 12 serie; i periodi assenti non vengono trasformati automaticamente in zeri. Le linee collegano le osservazioni disponibili: il tratto tra due punti non attesta un valore nei mesi mancanti. La riproducibilità dell'esecuzione riguarda lo stesso codice, gli stessi dati e lo stesso ambiente, non la generazione probabilistica del codice.
+Tra le regole Novera figurano l'escalation delle query con aging superiore a 10 giorni, la revisione dei siti sotto il 75% del target di recruitment per due mesi, le soglie di data completeness e i controlli sulle deviazioni maggiori in una finestra mobile di 30 giorni. Le finestre delle visite variano per studio: una domanda sulla sola "Week 6" richiede di chiarire a quale protocollo ci si riferisce.
 
-Il PNG viaggia nel campo opzionale `artifacts` di `/api/chat`, senza cambiare le risposte testuali esistenti. Codice generato e base64 del PNG non entrano nella history LLM. Le immagini recenti sono conservate separatamente in `sessionStorage`, fino a quattro risposte e con un limite di dimensione: il refresh può ripristinarle, ma quota esaurita o storage negato non garantiscono la persistenza. I PNG runtime sono salvati in `data_agent/generated_charts`, esclusa da Git; l'esecutore elimina quelli più vecchi di 24 ore quando elabora nuovi job.
-
-La modalità dinamica serve ad analisi descrittive: non sostituisce le analisi verificate per applicare finestre o soglie Novera e non autorizza valutazioni cliniche.
-
-Ho utilizzato **`intfloat/multilingual-e5-small`** per gli embedding della Knowledge Base e i modelli **`openai/gpt-oss-120b`** e **`openai/gpt-oss-20b`** per la componente generativa, con fallback limitato nei casi previsti.
-
-Ho preparato una Knowledge Base operativa fittizia con protocol synopsis, schedule e visit windows, SOP, linee guida di monitoring, responsabilità, FAQ e criteri di escalation. Tra le regole documentate ho incluso la site review per recruitment inferiore al 75% del target per due mesi consecutivi, l'escalation delle query oltre 10 giorni e i controlli sulle deviazioni maggiori in finestre temporali di 30 giorni.
-
-Ho volutamente **evitato di inserire nel CSV finestre di visita e indicatori out-of-window già calcolati**: l'agente deve prima recuperare le regole corrette dalla documentazione e poi applicarle ai dati.
+Il CSV **non contiene colonne con le finestre di visita già applicate né flag out-of-window precalcolati**. TrialPulse deve recuperare la regola documentale appropriata e applicarla alle date registrate. Le fonti scientifiche reali utilizzate per verificare la plausibilità del dataset non fanno parte della Knowledge Base operativa.
 
 ## Dataset sintetico e qualità dei dati
 
-Ho generato il dataset operativo `data/trialpulse_operations.csv` in modo deterministico, partendo da configurazioni versionate e da un seed congelato. Il dataset contiene:
+Il file `data/trialpulse_operations.csv` è generato in modo deterministico da configurazioni versionate e da un seed congelato. Comprende:
 
-- **1.500 record logici** partecipante-visita, **1.508 righe fisiche** e **43 colonne**.
+- **1.500 righe logiche** partecipante-visita, **1.508 righe fisiche** e **43 colonne**.
 - **194 partecipanti screenati**, di cui **154 arruolati** e **40 screening failure**.
-- **8 duplicati intenzionali**, oltre ad anomalie controllate in date, campi non critici, formattazioni, monitoring e query.
+- **8 duplicati intenzionali**, date incoerenti, valori mancanti non critici, differenze di formattazione e alcune incongruenze di monitoring e query.
 
-Ho introdotto queste imperfezioni per verificare che le analisi non assumessero dati perfetti. Ho distinto gli zeri effettivamente presenti dai periodi non restituiti e ho previsto segnalazioni esplicite dei problemi di qualità.
+Queste imperfezioni servono a verificare deduplicazione, controlli di qualità, denominatori e segnalazione delle anomalie, senza assumere che i dati siano perfetti.
 
-### Come ho scelto i range dei dati
+### Plausibilità dei valori sintetici
 
-Ho creato **dati completamente sintetici**, senza copiare i record di alcun trial clinico reale. Per mantenerli credibili, ho confrontato i range di alcune variabili con una piccola selezione di pubblicazioni scientifiche pertinenti ai quattro trattamenti.
+I record non provengono da trial reali. Per mantenere intervalli plausibili, i range di alcune variabili sono stati confrontati con una selezione limitata di pubblicazioni sui trattamenti rappresentati. Le variabili sono classificate secondo la loro importanza per TrialPulse:
 
-Ho classificato le variabili in tre livelli, in base alla loro importanza per TrialPulse:
+- **HIGH:** intervalli più vicini ai valori plausibili osservati nelle fonti.
+- **MEDIUM:** intervalli più flessibili, mantenendo la coerenza del contesto.
+- **LOW:** variabilità maggiore, ma sempre plausibile.
 
-- **HIGH:** per le variabili più importanti ho mantenuto range più vicini ai valori plausibili osservati nelle fonti.
-- **MEDIUM:** ho adottato intervalli più flessibili, preservando la coerenza complessiva.
-- **LOW:** ho lasciato maggiore variabilità, senza introdurre valori volutamente irrealistici.
-
-Ho utilizzato quindi le pubblicazioni come **controllo di plausibilità**, non come dataset da riprodurre né come base per affermare risultati clinici. Non ho svolto una revisione sistematica della letteratura. Ho mantenuto queste fonti esterne alla Knowledge Base RAG, dedicata esclusivamente alle regole operative fittizie di Novera.
+Le pubblicazioni sono un **controllo di plausibilità**, non un dataset da riprodurre, una validazione clinica o una revisione sistematica della letteratura.
 
 **Riferimenti scientifici principali:**
 
@@ -115,43 +111,47 @@ Ho utilizzato quindi le pubblicazioni come **controllo di plausibilità**, non c
 - **Destrometorfano + bupropione:** studio [GEMINI](https://pubmed.ncbi.nlm.nih.gov/35649167/).
 - **Sertralina:** studio [PANDA](https://pubmed.ncbi.nlm.nih.gov/31543474/).
 
-Ho raccolto ulteriori dettagli e la classificazione delle variabili in `docs/references/plausibility_sources.md`.
+La classificazione e i riferimenti aggiuntivi sono descritti in `docs/references/plausibility_sources.md`.
 
-## Riproducibilità e verifiche
+## Riproducibilità, sicurezza e verifiche
 
-Ho conservato il generatore, le configurazioni e i controlli di integrità nel repository, senza rigenerare il dataset dopo il congelamento.
+Il generatore e le configurazioni sono conservati nel repository. Il dataset congelato non viene rigenerato durante l'avvio o i test ordinari.
 
-- **Seed:** `2939583971211916763`
-- **CSV SHA-256:** `3f9ad9042443eeecf70071132b87032f2564a6dba4b3d81f01efb18bd8aff7ec`
-- **Configurazione:** `data_agent/config/reproducibility.yaml`
+| Controllo | Valore |
+| --- | --- |
+| Seed principale | `2939583971211916763` |
+| SHA-256 CSV ufficiale | `3f9ad9042443eeecf70071132b87032f2564a6dba4b3d81f01efb18bd8aff7ec` |
+| Configurazione riproducibilità | `data_agent/config/reproducibility.yaml` |
 
-Le ultime esecuzioni delle suite backend e Python hanno verificato **552 test backend** e **95 test Python**: 80 superati nella suite ordinaria e 15 Docker opt-in saltati in quella esecuzione, poi eseguiti separatamente e tutti superati con l'immagine locale verificata. La precedente verifica del frontend, i cui sorgenti non sono cambiati successivamente, ha superato **39 test** e la build Vite; nella stessa verifica sono stati validati gli **11 documenti** della Knowledge Base. Questi sono risultati delle rispettive esecuzioni, non test rilanciati a ogni aggiornamento della documentazione. Ho inoltre eseguito prove reali su RAG, Data Agent, applicazione delle regole, gestione delle ambiguità e limiti clinici. I test automatici con provider simulato non equivalgono a una garanzia di affidabilità generativa in ogni esecuzione.
+### Qualità e testing
 
-Ho predisposto questi comandi di verifica dalla root, dopo l’installazione:
+Il progetto comprende test unitari e d'integrazione per analisi, deduplicazione, regole e finestre temporali, orchestrazione dei tool, errori e risposte, oltre a test React con **Testing Library**, browser **Playwright** con API simulate e verifiche di avvio multipiattaforma. La qualità del codice è controllata con **Ruff, Black, mypy, ESLint e Prettier**, ciascuno nel perimetro configurato; la tipizzazione Python rigorosa riguarda alcuni moduli, non l'intera codebase.
 
-```powershell
-npm --prefix backend test
-npm --prefix frontend test
-npm --prefix frontend run build
-& .\data_agent\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-& .\data_agent\.venv\Scripts\python.exe .\scripts\validate_kb.py
-Get-FileHash .\data\trialpulse_operations.csv -Algorithm SHA256
-```
+Le esecuzioni documentate includono **556 test backend superati**, **42 test frontend Node**, **5 test React** e **1 test browser E2E con API simulate**. Una successiva suite Python leggera sulla correzione dell'arresto executor ha ottenuto **108 PASS e 1 SKIP**; lo SKIP riguarda un test di segnalazione POSIX non applicabile a Windows. Sono stati inoltre eseguiti test Docker separati e un collaudo nativo dei servizi su runner Ubuntu e macOS. Questi risultati appartengono a esecuzioni e ambienti distinti e non costituiscono una singola certificazione end-to-end del deployment pubblico.
+
+La [CI GitHub Actions](https://github.com/psychedsem/TrialPulse/actions/workflows/ci.yml) esegue i controlli ordinari a ogni push e pull request; prove più onerose, come il runtime Docker e il RAG con modello, richiedono un avvio esplicito. Il workflow separato per la portabilità nativa verifica l'avvio dei servizi su Ubuntu e macOS. Non vengono eseguite chiamate Groq nei test automatici con provider simulato.
+
+### Isolamento del pandas agent
+
+La validazione AST limita il codice ammesso, ma **non sostituisce una sandbox**. I job vengono eseguiti in container effimeri con rete disabilitata, filesystem read-only, UID non privilegiato, capability rimosse, `no-new-privileges`, seccomp restrittivo, **512 MiB di RAM**, **1 CPU** e **32 processi** al massimo. Il codice generato non controlla l'immagine Docker, i mount, i comandi o i privilegi. L'executor è separato dai servizi web e conserva un lock di sicurezza quando la rimozione di un container non può essere confermata.
+
+Il profilo seccomp deriva da Moby Profiles: [attribuzione e modifiche](data_agent/sandbox/seccomp.json.license) e [licenza Apache-2.0 originale](data_agent/sandbox/LICENSE-APACHE-2.0.txt). Il testo legale di terzi rimane nella lingua originale.
 
 ## Installazione e avvio locale
 
-Per il launcher automatico nativo, i comandi Bash su macOS/Linux e l'alternativa Docker Compose, consultare [Sviluppo e verifiche locali](docs/local-dev.md). Le procedure sono predisposte per i tre sistemi; l'esecuzione nativa su macOS/Linux richiede una verifica sul relativo sistema.
+Il modo più semplice per preparare una nuova copia del progetto è utilizzare il **launcher Python nativo**, che coordina le verifiche e l'avvio dei quattro servizi su Windows, Linux e macOS. Per prerequisiti, installazione, istruzioni Bash, avvio manuale e Docker Compose è disponibile la guida [Sviluppo e verifiche locali](docs/local-dev.md).
 
-Ho sviluppato e verificato il prototipo su **Windows/PowerShell**, con **Node.js 24.19.0**, **npm 11.17.0** e **Python 3.14.2**. Per riprodurre l'ambiente su una nuova copia, ho previsto i seguenti comandi dalla root del progetto:
-
-```powershell
-npm --prefix backend ci
-npm --prefix frontend ci
-python -m venv data_agent/.venv
-& .\data_agent\.venv\Scripts\python.exe -m pip install -r .\data_agent\requirements.txt -r .\rag\requirements.txt
+```text
+python scripts/dev.py setup --full
+python scripts/dev.py test
+python scripts/dev.py start
 ```
 
-Ho separato le credenziali dal codice. Copiare i template solo su una nuova installazione, senza sovrascrivere configurazioni esistenti:
+`setup --full` installa le dipendenze, ma non rigenera il CSV e **non costruisce l'indice RAG automaticamente**. Al primo avvio, se l'indice manca, inizializzarlo seguendo la guida; `rag/build_index.py` sostituisce la collezione esistente e non va rilanciato su un indice già preparato. `start` utilizza le porte locali **8000** (Data Agent), **8001** (RAG), **3001** (backend) e **5173** (frontend). Si arrestano i processi di quella sessione con Ctrl+C.
+
+### Configurazione del provider
+
+Le credenziali non devono comparire nel codice né nel frontend. Per una nuova installazione, copiare i template pertinenti senza sovrascrivere eventuali `.env` già presenti:
 
 ```powershell
 Copy-Item .\backend\.env.example .\backend\.env
@@ -159,39 +159,13 @@ Copy-Item .\frontend\.env.example .\frontend\.env.local
 Copy-Item .\data_agent\.env.example .\data_agent\.env
 ```
 
-Configurare `GROQ_API_KEY` soltanto nei controllori server: backend e, se si abilita la generazione dinamica, Data Agent. Non passarla all'executor o al container. Il backend carica `backend/.env`; Uvicorn carica il template privato Data Agent con `--env-file`. Il frontend usa `BACKEND_PROXY_TARGET` per il proxy locale e `VITE_API_BASE_URL` per il backend HTTPS della build pubblica: entrambe sono configurazioni non segrete.
+Configurare `GROQ_API_KEY` soltanto nei componenti server autorizzati. L'interfaccia usa `VITE_API_BASE_URL` per il backend HTTPS della build pubblica e un proxy Vite durante lo sviluppo. Il backend comunica con FastAPI e RAG tramite HTTP locale e dispone di un fallback Python opzionale, disabilitato per impostazione predefinita.
 
-Ho previsto la costruzione dell'indice Chroma **solo se assente**, prima dell'avvio del RAG:
+### Analisi dinamica nell'ambiente locale
 
-```powershell
-& .\data_agent\.venv\Scripts\python.exe .\rag\build_index.py
-```
+La modalità dinamica è **disabilitata per impostazione predefinita** (`TRIALPULSE_PANDAS_ENABLED=0`). Richiede un daemon Docker Linux compatibile, un'immagine sandbox verificata, un executor separato e una coda condivisa privata. Il launcher ordinario non la attiva automaticamente. I passaggi manuali per l'ambiente Windows e i test Docker sono documentati di seguito per chi desidera riprodurre il comportamento in isolamento.
 
-**Attenzione:** questo comando sostituisce la collezione `trialpulse_kb` eventualmente esistente. Non l'ho previsto come operazione da ripetere a ogni avvio.
-
-Ho utilizzato quattro terminali separati per i servizi locali:
-
-```powershell
-# 1. Data Agent: porta 8000
-& .\data_agent\.venv\Scripts\python.exe -m uvicorn app:app --app-dir data_agent --env-file data_agent/.env --host 127.0.0.1 --port 8000
-
-# 2. RAG: porta 8001
-& .\data_agent\.venv\Scripts\python.exe -m uvicorn app:app --app-dir rag --host 127.0.0.1 --port 8001
-
-# 3. Backend: porta 3001
-npm --prefix backend run start
-
-# 4. Frontend: porta 5173
-npm --prefix frontend run dev
-```
-
-Ho utilizzato `http://localhost:5173` come indirizzo locale dell'interfaccia. Il frontend inoltra `/api` al backend tramite il proxy Vite; il backend comunica con i servizi Python via HTTP locale. Ho predisposto anche un recupero Python tramite `child_process`, facoltativo e disabilitato per impostazione iniziale, utilizzabile solo nelle condizioni documentate in `backend/.env.example`.
-
-### Avvio facoltativo dell'analisi dinamica su Windows
-
-Richiede Docker Desktop con motore **Linux** operativo e seccomp disponibile. L'ambiente locale verificato usa Docker Desktop 4.95.0 / Engine 29.8.2. La funzionalità resta **disabilitata per impostazione iniziale** (`TRIALPULSE_PANDAS_ENABLED=0`). Le analisi deterministiche non richiedono Docker.
-
-Dalla root costruire l'immagine, non a ogni avvio:
+Dalla radice del progetto, con Docker Desktop Linux attivo:
 
 ```powershell
 docker build --file data_agent/sandbox/Dockerfile --tag trialpulse-pandas-sandbox:local data_agent
@@ -199,54 +173,24 @@ $sandboxImage = docker image inspect trialpulse-pandas-sandbox:local --format '{
 if ($LASTEXITCODE -ne 0 -or $sandboxImage -notmatch '^sha256:[a-f0-9]{64}$') { throw 'Immagine Docker non verificata.' }
 ```
 
-Il contesto Docker usa un'allowlist: solo protocollo e runner, mai `.env`, repository completo o dati. Il Dockerfile fissa il digest della base Python e le versioni pandas/matplotlib; le dipendenze transitive non sono completamente bloccate. La build non promette quindi un digest identico su ogni macchina. `$sandboxImage` è l'ID immutabile locale, non il tag modificabile né necessariamente il digest di un registro.
+L'immagine viene scelta tramite ID `sha256` locale, non tramite tag modificabile. Il Dockerfile fissa il digest della base e le versioni principali, ma non tutte le dipendenze transitive: una nuova build non garantisce lo stesso ID.
 
-In un quinto terminale PowerShell, dalla root e **senza caricare segreti**:
+In un terminale dedicato, senza chiavi Groq nell'ambiente dell'executor:
 
 ```powershell
-$sandboxImage = docker image inspect trialpulse-pandas-sandbox:local --format '{{.Id}}'
-if ($LASTEXITCODE -ne 0 -or $sandboxImage -notmatch '^sha256:[a-f0-9]{64}$') { throw 'Immagine Docker non verificata.' }
 $pandasQueue = Join-Path $env:TEMP 'trialpulse-pandas-local'
 & .\data_agent\.venv\Scripts\python.exe .\data_agent\pandas_executor.py --queue $pandasQueue --image $sandboxImage
 ```
 
-L'executor normalmente resta silenzioso in attesa. Avviarne uno solo; un `executor.lock` residuo richiede verifica dei processi prima di qualsiasi intervento manuale. Non rimuovere il lock di un executor attivo.
-
-Nel terminale Data Agent, prima del suo avvio, usare la **stessa coda** e abilitare esplicitamente la capacità:
-
-```powershell
-$env:TRIALPULSE_PANDAS_ENABLED = '1'
-$env:TRIALPULSE_PANDAS_QUEUE = Join-Path $env:TEMP 'trialpulse-pandas-local'
-& .\data_agent\.venv\Scripts\python.exe -m uvicorn app:app --app-dir data_agent --env-file data_agent/.env --host 127.0.0.1 --port 8000
-```
-
-`data_agent/.env` deve contenere `GROQ_API_KEY` e `GROQ_MODEL` per il generatore. Mantenere il modello coerente con il backend per il coordinamento locale del pacing. Le variabili già presenti nel processo hanno precedenza sul file. Non avviare un secondo servizio sulla porta 8000: su un'installazione attiva eseguire prima un arresto controllato del solo Data Agent a richieste concluse. Non è necessario riavviare RAG o ricostruire l'indice.
-
-La coda deve essere locale e accessibile solo al controllore e all'executor, non condivisa con utenti non fidati. Il suo percorso è configurato tramite `TRIALPULSE_PANDAS_QUEUE` nel controllore e `--queue` nell'executor; senza configurazione entrambi usano `data_agent/.pandas_queue`. Un percorso in `.env` deve essere assoluto, senza assumere l'espansione di `%TEMP%`.
-
-Per ripetere i soli test Docker offline, senza generazioni LLM:
-
-```powershell
-$env:TRIALPULSE_SANDBOX_IMAGE = docker image inspect trialpulse-pandas-sandbox:local --format '{{.Id}}'
-& .\data_agent\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_pandas_docker.py'
-Remove-Item Env:TRIALPULSE_SANDBOX_IMAGE
-```
-
-### Isolamento e requisiti prima dell'abilitazione pubblica
-
-L'AST è un controllo preliminare, **non una sandbox**. Il container non ha rete o mount host, usa UID 65532, filesystem read-only, capabilities rimosse, `no-new-privileges`, profilo seccomp restrittivo, 512 MiB RAM senza swap aggiuntivo, una CPU, massimo 32 processi e tmpfs da 64 MiB. Il limite CPU è 10 secondi; l'esecuzione ha timeout di 20 secondi e cleanup verificato. Mancanza dell'esecutore, output non valido o isolamento non disponibile producono un rifiuto, mai esecuzione Python non isolata. Un cleanup non verificabile arresta l'executor.
-
-Il profilo deriva da Moby Profiles, con ulteriori esclusioni delle syscall di rete: [attribuzione e modifiche](data_agent/sandbox/seccomp.json.license) e [licenza Apache-2.0 originale](data_agent/sandbox/LICENSE-APACHE-2.0.txt). Il testo legale di terzi è conservato nella lingua originale.
-
-Docker Desktop locale non certifica la separazione dei privilegi sulla VM. Prima di abilitarvi il pandas agent occorre verificare identità di servizio distinte, nessun accesso al daemon Docker da Node/FastAPI/RAG, coda privata con ACL appropriate, codice/profilo/immagine non modificabili dai servizi web, supervisione dell'executor con arresto in caso di cleanup fallito e segreti esclusi dal suo ambiente. L'executor non deve avere un listener pubblico. Accesso al daemon significa privilegi elevati sull'host: non basta rimuovere il socket dal container. Queste condizioni richiedono verifica dedicata, non sono applicate automaticamente dal prototipo.
+Prima di avviare il Data Agent, configurare nel suo ambiente la medesima coda e le variabili `TRIALPULSE_PANDAS_ENABLED=1`, `GROQ_API_KEY` e `GROQ_MODEL`. Non avviare un secondo processo sulla porta 8000. L'executor non deve ricevere credenziali né accesso all'ambiente server; un lock residuo richiede verifica dei processi e dei container prima di qualsiasi rimozione manuale.
 
 ## Limiti e utilizzo responsabile
 
-Ho progettato TrialPulse per il **supporto alle operazioni di ricerca**, non per diagnosi, valutazioni di idoneità, raccomandazioni terapeutiche o confronti di superiorità clinica tra trattamenti. I dati sintetici possono illustrare indicatori operativi, ma non dimostrano quale terapia sia più efficace.
+TrialPulse è un **prototipo dimostrativo di supporto alle Clinical Research Operations**, non un sistema clinico di produzione. Non diagnostica, non determina l'idoneità di un partecipante, non raccomanda terapie e non stabilisce la superiorità clinica di un trattamento. I dati interamente sintetici non dimostrano risultati di efficacia o sicurezza nella pratica clinica.
 
-Ho mantenuto controlli sulle fonti e sugli output, pur riconoscendo alcuni limiti: il provider Groq può restituire occasionalmente errori `400 tool_use_failed`, risposte strutturate incomplete o `429` per limiti di quota. Ho implementato pacing, retry e fallback circoscritti, senza considerarli garanzie di successo. La generazione Python usa una chiamata separata, senza fallback non isolato. Un HTTP 400 del Data Agent può essere un rifiuto applicativo distinto dal 400 Groq; la causa di alcuni errori locali precedenti resta indeterminata. Due generazioni per grafici lineari sono state rifiutate dall'AST: non sono stati acquisiti i costrutti originali responsabili. Le istruzioni lineari sono state precisate, con un esempio accettato dal validatore ed eseguito nei test Docker; è seguito un esito manuale positivo, non la dimostrazione della causa dei due rifiuti o della sua eliminazione. Il codice generato può essere metodologicamente errato anche quando è eseguibile: verificare perimetro, aggregazioni e qualità dei dati. I controlli PNG sono strutturali, non un validatore completo di tutti i CRC. TrialPulse resta un **prototipo dimostrativo**, non un sistema clinico di produzione; la demo pubblica non certifica hardening, autenticazione o sicurezza del nuovo executor.
+Le risposte generate dall'agente richiedono una verifica rispetto alle fonti e ai dati disponibili. TrialPulse integra controlli sulla provenienza delle informazioni, sulla validità degli input e sull'esecuzione isolata delle analisi dinamiche. Tuttavia, la correttezza metodologica dei risultati, in particolare dei grafici generati tramite codice pandas, deve essere verificata prima di utilizzarli a supporto di decisioni operative.
 
-Ho conservato la conversazione recente nella sessione del browser, con ripristino dopo il refresh e possibilità di azzerarla tramite conferma. Non ho realizzato un archivio centrale delle conversazioni. La distribuzione del solo frontend statico non sostituisce l'hosting e la protezione del backend, del Data Agent e del RAG.
+La conversazione recente rimane nella sessione del browser, non in un archivio centrale. Gli artefatti grafici hanno una persistenza locale limitata e non sono inseriti nella history LLM. La demo pubblica non costituisce una certificazione generale di sicurezza, autenticazione o prontezza per l'uso clinico.
 
 ## Contatti
 

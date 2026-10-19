@@ -1,7 +1,11 @@
 import importlib
 import json
+import os
+import signal
+import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import unittest
@@ -9,6 +13,138 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "data_agent"))
+
+
+class ExecutorShutdownTests(unittest.TestCase):
+    def run_executor(self, queue, body):
+        script = "\n".join([
+            "import signal, sys",
+            "from unittest.mock import patch",
+            "import pandas_executor as executor",
+            *body,
+        ])
+        env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "data_agent")}
+        return subprocess.run(
+            [sys.executable, "-c", script, "--queue", str(queue), "--image", "sha256:" + "a" * 64],
+            capture_output=True, text=True, timeout=15, env=env,
+        )
+
+    def test_segnali_ripetuti_puliscono_la_coda_e_consentono_il_riavvio(self):
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=signum), tempfile.TemporaryDirectory() as directory:
+                queue = Path(directory)
+                for _ in range(2):
+                    result = self.run_executor(queue, [
+                        f"def stop(_):\n    signal.raise_signal({int(signum)})\n    signal.raise_signal({int(signum)})",
+                        "with patch.object(executor.time, 'sleep', side_effect=stop):",
+                        "    executor.main()",
+                    ])
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(list(queue.iterdir()), [])
+
+    def test_cleanup_incerto_rimuove_ready_ma_conserva_il_blocco(self):
+        with tempfile.TemporaryDirectory() as directory:
+            queue = Path(directory)
+            request = queue / ("a" * 32 + ".request.json")
+            request.write_text("{}", encoding="utf-8")
+            result = self.run_executor(queue, [
+                "from pandas_sandbox import SandboxCleanupError",
+                "with patch.object(executor, 'process_request', side_effect=SandboxCleanupError('cleanup')):",
+                "    try:",
+                "        executor.main()",
+                "    except SandboxCleanupError:",
+                "        pass",
+            ])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((queue / "executor.ready").exists())
+            self.assertTrue((queue / "executor.lock").exists())
+            self.assertTrue(request.exists())
+            restart = self.run_executor(queue, ["executor.main()"])
+            self.assertNotEqual(restart.returncode, 0)
+            self.assertIn("FileExistsError", restart.stderr)
+
+    def test_lock_precedente_non_viene_cancellato(self):
+        with tempfile.TemporaryDirectory() as directory:
+            queue = Path(directory)
+            (queue / "executor.lock").write_text("123", encoding="ascii")
+            (queue / "executor.ready").write_text("preesistente", encoding="ascii")
+            result = self.run_executor(queue, ["executor.main()"])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((queue / "executor.lock").read_text(), "123")
+            self.assertEqual((queue / "executor.ready").read_text(), "preesistente")
+
+    def test_stop_durante_job_attende_cleanup_e_non_avvia_il_successivo(self):
+        with tempfile.TemporaryDirectory() as directory:
+            queue = Path(directory)
+            first = queue / ("a" * 32 + ".request.json")
+            second = queue / ("b" * 32 + ".request.json")
+            first.write_text("{}", encoding="utf-8")
+            second.write_text("{}", encoding="utf-8")
+            result = self.run_executor(queue, [textwrap.dedent('''
+                import io, json
+                from types import SimpleNamespace
+                import pandas_sandbox as sandbox
+                events = []
+                png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jJawAAAAASUVORK5CYII="
+                class Client:
+                    returncode = 0
+                    def __init__(self, *args, **kwargs):
+                        self.stdin = io.BytesIO()
+                        self.stdout = io.BytesIO(json.dumps({"rows": [{"label": "x", "value": 1}], "png": png}).encode())
+                    def wait(self, **kwargs):
+                        signal.raise_signal(signal.SIGTERM)
+                        signal.raise_signal(signal.SIGINT)
+                        return 0
+                    def poll(self):
+                        return 0
+                    def kill(self):
+                        raise AssertionError("Job di prova già terminato.")
+                def docker(command, **kwargs):
+                    events.append(command)
+                    signal.raise_signal(signal.SIGINT)
+                    return SimpleNamespace(returncode=0, stdout=b"")
+                def job(path, *args):
+                    events.append(path.name)
+                    output = sandbox.execute_isolated({"version": 1, "code": "result = df", "chart": "bar", "filters": {}}, [], args[0])
+                    assert output["rows"] == [{"label": "x", "value": 1}]
+                previous = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+                with patch.object(executor, 'process_request', side_effect=job), patch.object(sandbox.subprocess, 'Popen', Client), patch.object(sandbox.subprocess, 'run', side_effect=docker):
+                    executor.main()
+                assert previous == {sig: signal.getsignal(sig) for sig in previous}
+                print(json.dumps(events))
+            ''')])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            events = json.loads(result.stdout)
+            self.assertEqual(events[0], first.name)
+            self.assertEqual(events[1][1:3], ["rm", "-f"])
+            self.assertEqual(events[2][1:3], ["ps", "-aq"])
+            self.assertEqual(events[2][-1], f"name=^/{events[1][-1]}$")
+            self.assertEqual(len(events), 3)
+            self.assertEqual([path.name for path in queue.iterdir()], [second.name])
+
+    @unittest.skipUnless(os.name == "posix", "Invio SIGTERM/SIGINT al processo disponibile solo su POSIX.")
+    def test_segnali_posix_al_processo_e_riavvio(self):
+        with tempfile.TemporaryDirectory() as directory:
+            queue = Path(directory)
+            for signum in (signal.SIGTERM, signal.SIGINT):
+                child = subprocess.Popen([
+                    sys.executable, str(Path(__file__).resolve().parents[1] / "data_agent" / "pandas_executor.py"),
+                    "--queue", str(queue), "--image", "sha256:" + "a" * 64,
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                try:
+                    deadline = time.monotonic() + 10
+                    while not (queue / "executor.ready").exists():
+                        self.assertIsNone(child.poll(), "Esecutore terminato prima della disponibilità.")
+                        self.assertLess(time.monotonic(), deadline, "Avvio esecutore scaduto.")
+                        time.sleep(0.01)
+                    child.send_signal(signum)
+                    _, error = child.communicate(timeout=10)
+                    self.assertEqual(child.returncode, 0, error.decode())
+                    self.assertEqual(list(queue.iterdir()), [])
+                finally:
+                    if child.poll() is None:
+                        child.kill()
+                    child.communicate(timeout=5)
 
 
 class DynamicAgentTests(unittest.TestCase):

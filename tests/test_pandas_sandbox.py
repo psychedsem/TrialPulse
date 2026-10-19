@@ -1,7 +1,11 @@
 import importlib
+import io
+import subprocess
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "data_agent"))
 
@@ -47,6 +51,43 @@ class SandboxContractTests(unittest.TestCase):
         for value in ({"rows": [{"label": "x", "value": float('nan')}], "png": ""}, {"rows": [{"label": "x", "value": 1}], "png": "eA=="}):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.sandbox.validate_output(value)
+
+    def test_errore_arresto_client_non_salta_la_rimozione_container(self):
+        job = {"version": 1, "code": "result = df", "chart": "bar", "filters": {}}
+        process = Mock(stdin=Mock(closed=False), stdout=io.BytesIO())
+        process.stdin.write.side_effect = BrokenPipeError()
+        process.poll.return_value = None
+        process.wait.side_effect = subprocess.TimeoutExpired("docker", 5)
+        calls = []
+
+        def docker(command, **kwargs):
+            calls.append(command)
+            return SimpleNamespace(returncode=0, stdout=b"")
+
+        with patch.object(self.sandbox.subprocess, "Popen", return_value=process), patch.object(self.sandbox.subprocess, "run", side_effect=docker):
+            with self.assertRaises(self.sandbox.SandboxCleanupError):
+                self.sandbox.execute_isolated(job, [], "sha256:" + "a" * 64)
+        self.assertEqual([command[1:3] for command in calls], [["rm", "-f"], ["ps", "-aq"]])
+        self.assertEqual(calls[1][-1], f"name=^/{calls[0][-1]}$")
+
+    def test_cleanup_docker_non_confermato_non_restituisce_risultati(self):
+        job = {"version": 1, "code": "result = df", "chart": "bar", "filters": {}}
+        for failure in ("rm", "ps", "residuo", "timeout"):
+            with self.subTest(failure=failure):
+                process = Mock(stdin=io.BytesIO(), stdout=io.BytesIO(), returncode=1)
+                process.poll.return_value = 1
+
+                def docker(command, **kwargs):
+                    if failure == "timeout":
+                        raise subprocess.TimeoutExpired(command, 10)
+                    return SimpleNamespace(
+                        returncode=int(command[1] == failure),
+                        stdout=b"container" if failure == "residuo" else b"",
+                    )
+
+                with patch.object(self.sandbox.subprocess, "Popen", return_value=process), patch.object(self.sandbox.subprocess, "run", side_effect=docker):
+                    with self.assertRaises(self.sandbox.SandboxCleanupError):
+                        self.sandbox.execute_isolated(job, [], "sha256:" + "a" * 64)
 
 
 if __name__ == "__main__":

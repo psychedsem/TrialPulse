@@ -4,12 +4,14 @@ import os
 import json
 from pathlib import Path
 import signal
+import socket
 import subprocess
 import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 
@@ -45,6 +47,13 @@ def stop_launcher(process):
         os.killpg(process.pid, signal.SIGKILL)
         raise AssertionError("Processi residui nel gruppo QA; cleanup forzato, non PASS.")
     assert process.returncode == 0, "Il launcher non è terminato correttamente."
+
+
+def assert_ports_released(ports=dev.PORTS):
+    """Su POSIX ammette TIME_WAIT, ma non la condivisione di un listener attivo."""
+    for port in ports:
+        with socket.create_server(("127.0.0.1", port), reuse_port=False):
+            pass
 
 
 def request_json(port, path, payload=None, timeout=5):
@@ -155,11 +164,15 @@ def test_stack_nativo_health_dati_retrieval_e_arresto(tmp_path):
             assert refused.value.code == 400
             assert json.load(refused.value) == {"error": "Il campo message è obbligatorio."}
             result["checks"].append("proxy frontend/backend senza LLM")
+    except Exception as error:
+        result["checks_error"] = type(error).__name__
+        raise
     finally:
+        result["cleanup"] = "FAIL"
         try:
             if process is not None:
                 stop_launcher(process)
-            dev.assert_ports_free()
+            assert_ports_released()
             result["cleanup"] = "PASS"
         finally:
             if index.is_symlink() and index.resolve() == target.resolve():
@@ -233,3 +246,43 @@ def test_cleanup_rileva_discendenti_anche_se_launcher_terminato(monkeypatch):
     with pytest.raises(AssertionError, match="residui"):
         stop_launcher(process)
     assert [call.args for call in kill.call_args_list] == [(12345, 0), (12345, 9)]
+
+
+def test_cleanup_time_wait_posix_non_equivale_a_listener(monkeypatch):
+    """Il kernel simulato rifiuta il bind esclusivo ma ammette il riuso TCP."""
+
+    def create_socket(*args):
+        probe = MagicMock()
+        probe.__enter__.return_value = probe
+
+        def bind(address):
+            if (
+                call(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                not in probe.setsockopt.call_args_list
+            ):
+                raise OSError(98, "Address already in use")
+
+        probe.bind.side_effect = bind
+        return probe
+
+    monkeypatch.setattr(socket, "socket", create_socket)
+    monkeypatch.setattr(socket, "os", SimpleNamespace(name="posix"))
+    with pytest.raises(RuntimeError, match="occupata"):
+        dev.assert_ports_free([32001])
+    assert_ports_released([32001])
+
+
+def test_cleanup_rifiuta_listener_reale_e_accetta_il_successivo_rilascio():
+    """Solo una porta effimera propria, senza avviare servizi HTTP o TrialPulse."""
+    with socket.create_server(("127.0.0.1", 0)) as listener:
+        port = listener.getsockname()[1]
+        with pytest.raises(OSError):
+            assert_ports_released([port])
+    assert_ports_released([port])
+
+
+def test_cleanup_errore_su_porta_successiva_rimane_un_fallimento(monkeypatch):
+    create = Mock(side_effect=[MagicMock(), PermissionError("accesso negato")])
+    monkeypatch.setattr(socket, "create_server", create)
+    with pytest.raises(PermissionError, match="accesso negato"):
+        assert_ports_released([32000, 32001])

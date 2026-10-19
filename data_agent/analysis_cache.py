@@ -16,9 +16,11 @@ REPORTS = ResultCache(maxsize=64, ttl=60)
 def cached_analysis(
     source: pd.DataFrame, quality: dict[str, Any], request: AnalyzeRequest
 ) -> dict[str, Any]:
-    if request.analysis.value != "recruitment_target" and not (
-        request.analysis.value == "recruitment" and "month" in request.group_by
-    ):
+    analysis = request.analysis.value
+    uses_cache = analysis == "recruitment_target" or (
+        analysis == "recruitment" and "month" in request.group_by
+    )
+    if not uses_cache:
         return analyze_dataset(source, quality, request)
     try:
         frame = pd.util.hash_pandas_object(source, index=True).values.tobytes()

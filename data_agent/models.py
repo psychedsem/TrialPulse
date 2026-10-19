@@ -82,7 +82,7 @@ REQUIRED_PARAMETERS = {
 }
 
 
-def validate_parameters(analysis, parameters):
+def validate_parameters(analysis: str, parameters: dict[str, object]) -> dict[str, object]:
     required = REQUIRED_PARAMETERS.get(analysis, set())
     optional = {"rate_threshold_percent"} if analysis == "out_of_window" else set()
     if set(parameters) - required - optional:

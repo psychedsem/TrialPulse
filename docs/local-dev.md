@@ -124,3 +124,48 @@ Il badge per il README usa lo stato effettivo del workflow su GitHub:
 ```
 
 Una configurazione verificata localmente non dimostra un'esecuzione riuscita su GitHub.
+
+## Collaudo nativo Ubuntu e macOS
+
+Il workflow `Portabilità nativa TrialPulse` in `.github/workflows/native-portability.yml`
+è esclusivamente manuale e distinto dalla CI ordinaria e da Docker Compose.
+Usa i runner `ubuntu-latest` e `macos-latest`, Python da `.python-version` e Node 22.
+Non richiede credenziali Groq e non esegue completion LLM o container.
+
+- **Profilo leggero**, `full_stack=false`: esegue `python scripts/dev.py setup`,
+  poi i test e la build con il launcher originale. Verifica anche i controlli
+  offline del collaudo. Non installa il RAG né avvia lo stack completo.
+- **Profilo completo**, `full_stack=true`, da autorizzare separatamente: esegue
+  `setup --full`, gli stessi controlli, poi il test nativo dei quattro servizi.
+  Scarica anche dipendenze RAG/PyTorch e modello multilingual-e5-small se mancanti.
+  I soli pesi del modello occupano circa 471 MB; il totale può raggiungere diversi
+  GB secondo wheel, piattaforma e cache. Sono possibili consumi di minuti runner,
+  soprattutto macOS, secondo il piano GitHub. Il timeout per runner è 40 minuti.
+
+Il test completo richiede una checkout effimera GitHub senza `.env` privati e
+senza `rag/chroma_db` preesistente. Crea un collegamento dal percorso standard
+RAG a un indice nel temporaneo pytest. Non sostituisce indici già presenti.
+Avvia il launcher nativo originale sulle porte 8000, 8001, 3001 e 5173 del runner,
+ne attende gli health check, verifica il portfolio sintetico e un retrieval reale,
+poi controlla il proxy Vite/Node con una richiesta vuota respinta prima dell'LLM.
+Dopo la costruzione dell'indice, il modello viene caricato in modalità offline.
+
+L'arresto riguarda solo il launcher e il gruppo di processi creato dal test.
+Timeout, processi residui o porte non liberate causano un fallimento, anche se
+serve un cleanup forzato. Il collegamento QA viene rimosso; i file dell'indice
+restano nell'area temporanea del runner, eliminata al termine dell'ambiente.
+Log, riepilogo e risultati JUnit sono conservati per sette giorni come artefatti.
+Un fallimento d'installazione non viene riclassificato come test saltato.
+
+Per i soli controlli offline aggiuntivi, senza avviare servizi:
+
+```text
+python -m pytest tests/unit/test_dev_launcher.py tests/test_native_portability.py -k "not test_occupied_port_refuses_start_before_process_creation"
+```
+
+Il runtime completo è disabilitato salvo `TRIALPULSE_NATIVE_RUNTIME=1` e viene
+ulteriormente rifiutato fuori dai runner GitHub Linux/macOS. Non abilitarlo
+sull'installazione operativa. I test Windows/POSIX dei comandi sono simulazioni,
+eccetto la verifica reale di `npm --version` quando disponibile; non certificano
+un avvio completo su un altro sistema. Un workflow soltanto predisposto o un
+profilo completo saltato non costituisce una verifica di portabilità runtime.

@@ -1,0 +1,77 @@
+name: Native Cross-Platform Checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_stack:
+        description: "Enable RAG installation, model download, and four native services"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      FULL_STACK: ${{ inputs.full_stack }}
+      GROQ_API_KEY: ""
+      TRIALPULSE_NATIVE_RUNTIME: "0"
+      TRIALPULSE_PANDAS_ENABLED: "0"
+      PYTHON_BRIDGE_ENABLED: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      ANONYMIZED_TELEMETRY: "False"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            data_agent/requirements-runtime.txt
+            rag/requirements.txt
+      - name: Setup using the original launcher
+        shell: bash
+        run: |
+          if [[ "$FULL_STACK" == "true" ]]; then
+            python scripts/dev.py setup --full
+          else
+            python scripts/dev.py setup
+          fi
+      - name: Report runner environment
+        run: .venv/bin/python -c "import platform; print(platform.platform(), platform.machine(), platform.python_version())"
+      - name: Test and build using the original launcher
+        run: .venv/bin/python scripts/dev.py test
+      - name: Verify test safeguards with runtime disabled
+        run: .venv/bin/python -m pytest tests/test_native_portability.py --junitxml=.tmp/native-portability/offline.xml
+      - name: Four native services and temporary index
+        if: inputs.full_stack
+        env:
+          TRIALPULSE_NATIVE_RUNTIME: "1"
+        run: |
+          .venv/bin/python -m pytest tests/test_native_portability.py -k test_stack_nativo_health_dati_retrieval_e_arresto --junitxml=.tmp/native-portability/runtime.xml
+          .venv/bin/python -c "import json; r=json.load(open('.tmp/native-portability/results.json')); assert len(r['checks']) == 5 and r['cleanup'] == 'PASS'"
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.os }}
+          path: .tmp/native-portability/
+          if-no-files-found: warn
+          retention-days: 7

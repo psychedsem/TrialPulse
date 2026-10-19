@@ -1,2 +1,13 @@
 # Conserva i byte del CSV ufficiale anche nei checkout Linux e macOS.
 data/trialpulse_operations.csv text eol=crlf
+
+# Mantiene LF nei soli test e configurazioni controllati da Prettier.
+frontend/tests/e2e/conversation.spec.js text eol=lf
+frontend/tests/react/App.test.jsx text eol=lf
+frontend/tests/react/setup.js text eol=lf
+frontend/vitest.config.js text eol=lf
+frontend/vite.e2e.config.js text eol=lf
+frontend/playwright.config.js text eol=lf
+frontend/eslint.config.js text eol=lf
+frontend/.prettierrc.json text eol=lf
+frontend/package.json text eol=lf
